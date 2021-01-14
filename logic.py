@@ -23,7 +23,7 @@ from framework.util import Util
 
 # 패키지
 from .plugin import logger, package_name
-from .model import ModelSetting, db_file
+from .model import ModelSetting
 
 ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ' \
      'Chrome/69.0.3497.100 Safari/537.36'
@@ -89,7 +89,7 @@ class Logic(object):
     # 디폴트 세팅값
     db_default = {
         'page_size': '24',
-        'release_suffix': 'TVING',
+        'release_suffix': 'ST',
         'vcode_exclude': '',
         'channel_exclude': '',
         'channel_include': '',
