@@ -40,13 +40,13 @@ def plugin_unload():
 
 plugin_info = {
     "category_name": "vod",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "name": "tving_info",
     "home": "https://github.com/wiserain/tving_info",
     "more": "https://github.com/wiserain/tving_info",
     "description": "티빙 실시간 정보를 보여주는 SJVA 플러그인",
     "developer": "wiserain",
-    "zip": "https://github.com/wiserain/tving_info/archive/master.zip",
+    "zip": "https://github.com/wiserain/tving_info/archive/main.zip",
     "icon": "",
 }
 #########################################################

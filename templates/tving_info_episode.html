@@ -176,6 +176,9 @@
         if (data.is_qvod) {
             $('<span class="ml-1 badge badge-pill badge-danger">QVOD</span>').insertAfter(template_clone.querySelector("#vod_info"));
         }
+        if (data.is_drm) {
+            $('<span class="ml-1 badge badge-pill badge-info">DRM</span>').insertAfter(template_clone.querySelector("#vod_info"));
+        }
         
         template_clone.querySelector("#program_info").href = `http://www.tving.com/vod/player/${data.raw.program.code}?csite=tving_web`;
         template_clone.querySelector("#program_info").title = data.raw.program.synopsis.ko;

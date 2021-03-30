@@ -209,6 +209,7 @@ class Logic(object):
             'filename': filename,
             'poster_url': 'https://image.tving.com' + poster[0] + '/dims/resize/236' if poster else '',
             'is_qvod': (item['program']['quickup_yn'].upper() == 'Y') and ('quickvod' in item['episode']['pip_media_url']),
+            'is_drm': item['episode']['drm_yn'].upper() == 'Y',
             'air_info': ' | '.join(air_info),
             'datetime': datetime.strptime(str(item['service_open_date']), '%Y%m%d%H%M%S').isoformat(),
             'raw': item, 
