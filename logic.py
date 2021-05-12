@@ -1,34 +1,27 @@
 # -*- coding: utf-8 -*-
-#########################################################
-# python
-import os
 import re
 import sys
 import traceback
 from datetime import datetime
-import platform
 import ntpath
-
-try:
-    from urllib import quote  # Python 2.X
-except ImportError:
-    from urllib.parse import quote  # Python 3+
+from urllib.parse import quote
 
 # third-party
 import requests
+from flask import request, render_template, jsonify
 
-# sjva 공용
-from framework import db, scheduler, app
-from framework.util import Util
+# app common
+from framework.common.plugin import LogicModuleBase
 
-# 패키지
-from .plugin import logger, package_name
-from .model import ModelSetting
+# local
+from .plugin import plugin
+
+logger = plugin.logger
+package_name = plugin.package_name
+ModelSetting = plugin.ModelSetting
 
 ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ' \
      'Chrome/69.0.3497.100 Safari/537.36'
-
-#########################################################
 
 os_mode = None  # Can be 'windows', 'mac', 'linux' or None. None will auto-detect os.
 # Replacement order is important, don't use dicts to store
@@ -85,8 +78,7 @@ def pathscrub(dirty_path, os=None, filename=False):
     return drive + path
 
 
-class Logic(object):
-    # 디폴트 세팅값
+class LogicMain(LogicModuleBase):
     db_default = {
         'page_size': '24',
         'release_suffix': 'ST',
@@ -98,62 +90,52 @@ class Logic(object):
         'searched_val': '',
         'searched_at': '',
     }
+    
+    def __init__(self, P):
+        super(LogicMain, self).__init__(P, None)
 
-    @staticmethod
-    def db_init():
+    def process_menu(self, sub, req):
+        arg = ModelSetting.to_dict()
+        arg['package_name'] = package_name
+        if sub == 'setting':
+            return render_template(f'{package_name}_{sub}.html', sub=sub, arg=arg)
+        elif sub == 'episode':
+            return render_template(f'{package_name}_{sub}.html', arg=arg)
+        elif sub == 'log':
+            return render_template('log.html', package=package_name)
+        return render_template('sample.html', title=f'{package_name} - {sub}')
+
+    def process_ajax(self, sub, req):
         try:
-            for key, value in Logic.db_default.items():
-                if db.session.query(ModelSetting).filter_by(key=key).count() == 0:
-                    db.session.add(ModelSetting(key, value))
-            db.session.commit()
+            p = request.form.to_dict() if request.method == 'POST' else request.args.to_dict()
+            if sub == 'episode':
+                search = p.get('search', '')
+                page = p.get('page', '1')
+
+                new_params = {}
+                if search:
+                    m = re.compile('^(P[0-9]+)$').search(search)
+                    pcodes = [search] if m else self.tving_search(search)
+                    if pcodes:
+                        new_params.update({'programCode': ','.join(pcodes), "lastFrequency": 'Y'})
+                        if len(pcodes) == 1:
+                            new_params.update({'order': 'frequencyDesc', 'lastFrequency': 'N'})
+                ret = self.tving_episodes(new_params=new_params, page=page)
+                return jsonify({'success': True, 'episodes': ret})
+            elif sub == 'append_filter':
+                db_key = p.get('key')
+                db_val = ModelSetting.get(db_key)
+                if db_val:
+                    db_val += ','
+                db_val += p.get('val', '')
+                ModelSetting.set(db_key, db_val)
+                return jsonify({'success': True})
         except Exception as e:
             logger.error('Exception: %s', str(e))
             logger.error(traceback.format_exc())
+            return jsonify({'success': False, 'log': str(e)})
 
-    @staticmethod
-    def plugin_load():
-        try:
-            # DB 초기화
-            Logic.db_init()
-
-            # 편의를 위해 json 파일 생성
-            from .plugin import plugin_info
-            Util.save_from_dict_to_json(plugin_info, os.path.join(os.path.dirname(__file__), 'info.json'))
-
-            #
-            # 자동시작 옵션이 있으면 보통 여기서
-            #
-        except Exception as e:
-            logger.error('Exception: %s', str(e))
-            logger.error(traceback.format_exc())
-
-    @staticmethod
-    def plugin_unload():
-        try:
-            logger.debug('%s plugin_unload', package_name)
-        except Exception as e:
-            logger.error('Exception: %s', str(e))
-            logger.error(traceback.format_exc())
-
-    @staticmethod
-    def setting_save(req):
-        try:
-            for key, value in req.form.items():
-                logger.debug('Key:%s Value:%s', key, value)
-                entity = db.session.query(ModelSetting).filter_by(key=key).with_for_update().first()
-                entity.value = value
-            db.session.commit()
-            return True
-        except Exception as e:
-            logger.error('Exception: %s', str(e))
-            logger.error(traceback.format_exc())
-            return False
-
-    # 기본 구조 End
-    ##################################################################
-
-    @staticmethod
-    def tving_parser(item):
+    def tving_parser(self, item):
         # 포스터
         poster = [x['url'] for x in item['program']['image'] if x['code'] == 'CAIP0900']
 
@@ -215,8 +197,7 @@ class Logic(object):
             'raw': item, 
         }
 
-    @staticmethod
-    def tving_search(keyword):
+    def tving_search(self, keyword):
         # from search cache
         if keyword == ModelSetting.get('searched_key'):
             searched_at = datetime.fromisoformat(ModelSetting.get('searched_at'))
@@ -284,8 +265,7 @@ class Logic(object):
             ModelSetting.set('searched_val', ','.join(ret))
         return ret
 
-    @staticmethod
-    def tving_episodes(new_params={}, page='1'):
+    def tving_episodes(self, new_params={}, page='1'):
         api_url = 'http://api.tving.com/v2/media/episodes'
         referer = 'http://www.tving.com/vod/home'
         params = {
@@ -339,7 +319,7 @@ class Logic(object):
         processed_ep_list = []
         try:
             for item_db in tving_ep_list:
-                rss_item_dict = Logic.tving_parser(item_db)
+                rss_item_dict = self.tving_parser(item_db)
                 if bool(rss_item_dict):
                     processed_ep_list.append(rss_item_dict)
         except Exception as e:
