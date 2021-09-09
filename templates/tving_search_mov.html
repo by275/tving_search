@@ -1,0 +1,641 @@
+{% extends "base.html" %} 
+{% block head %}
+{{ super() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.1/umd/popper.min.js" integrity="sha512-ubuT8Z88WxezgSqf3RLuNi5lmjstiJcyezx34yIU2gAHonIi27Na7atqzUZCOoY4CExaoFumzOsFQ2Ch+I/HCw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+{% endblock %}
+{% block content %}
+
+<form class="mt-0" id="search-form">
+    {% if sub == 'movies' %}
+    <div class="input-group justify-content-between">
+        <div class="input-group-prepend" style="flex: 1;">
+            <select id="filter-type" class="custom-select ml-0 mr-1 w-auto" name="type" title="유형 선택">
+            {% for li in arg['optlist']['type'] %}
+                <option value="{{ li['val'] }}" {{ li['sel'] }}>{{ li['key'] }}</option>
+            {% endfor %}
+            </select>
+            <select id="filter-order" class="custom-select ml-0 mr-1 w-auto" name="order" title="정렬 기준">
+            {% for li in arg['optlist']['order'] %}
+                <option value="{{ li['val'] }}" {{ li['sel'] }}>{{ li['key'] }}</option>
+            {% endfor %}
+            </select>
+        </div>
+        <div class="btn-group" role="group" aria-label="reset and expand">
+            <button class="btn btn-outline-secondary" type="button" id="filter-reset-btn" title="필터 리셋">
+                <i class="fa fa-undo"></i>
+            </button>
+            <button class="btn btn-outline-secondary" type="button" id="new-collection-btn" title="콜렉션 추가">
+                <i class="fa fa-file-export"></i>
+            </button>
+            <button class="btn btn-outline-secondary" type="button" id="filter-expand-btn" title="더 많은 필터">
+                <i class="fa fa-angle-down"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="mb-2 collapse hide" id="advanced-filter">
+        <div class="input-group mt-2">
+            <select id="filter-category" class="custom-select ml-0 mr-1 w-auto" multiple="multiple" name="category" title="장르 선택">
+            {% for li in arg['optlist']['category'] %}
+                <option value="{{ li['val'] }}" title="{{ li['val'] }}" {{ li['sel'] }}>{{ li['key'] }}</option>
+            {% endfor %}
+            </select>
+        </div>
+        <div class="input-group mt-2 justify-content-between">
+            <div class="custom-control custom-checkbox">
+                <input type="checkbox" class="custom-control-input" id="filter-diversityonly" name="diversityonly" title="다양성 영화만 보기" {{ 'checked' if arg['optlist']['diversityonly'] else ''}}>
+                <label class="custom-control-label" for="filter-diversityonly">다양성 영화만 보기</label>
+            </div>
+        </div>
+    </div>
+    {% elif sub == 'collections' %}
+    <div class="input-group" style="display:flex; flex-grow:1;">
+        <select name="collection-sel" class="custom-select ml-0 mr-1 w-auto" id="collection-sel" title="주제별 모음 선택">
+        {% for item in arg['collections'] %}
+            <option value="{{ item['val'] }}">{{ item['key'] }}</option>
+        {% endfor %}
+        </select>
+        <button class="btn btn-outline-secondary" type="button" id="collection-edit-btn" title="콜렉션 수정">
+            <i class="fas fa-edit"></i>
+        </button>
+    </div>
+    {% elif sub == 'search' %}
+    <div class="input-group" style="display:flex; flex-grow:1;">
+        <input name="search" type="text" class="form-control border-right-0 border rounded-left" value="" id="search" aria-describedby="basic-addon3">
+        <div class="input-group-append">
+            <button class="btn btn-outline-secondary border-left-0 border" type="submit" id="search_btn">
+                <i class="fa fas fa-search"></i>
+            </button>
+        </div>
+    </div>
+    {% endif %}
+</form>
+
+<small class="text-muted mt-0 ml-2" id="mv-loaded"></small>
+
+<ul class="list-group mt-3 mb-3" id="movies-list">
+    <template id="item-template">
+        <li class="list-group-item">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1 text-truncate" style="flex: 1;">
+                    <a href="" target="_blank" rel="noopener noreferrer" id="movie-title"></a>
+                </h6>
+                <small title="" id="datetime"></small>
+            </div>
+            <img src="" witdh="116" height="118" class="rounded float-left mt-1 mr-2" id="poster"></a>
+            <p class="mb-0 small text-truncate">
+                <a href="#" tabindex="-1" role="button" title="" aria-hidden="true" data-content="" data-toggle="popover" id="movie-info"></a>
+            </p>
+            <p class="mb-0 small text-muted text-truncate" id="summary"></p>
+            <p class="mb-0 small text-muted text-truncate" id="director"></p>
+            <p class="mb-0 small text-muted text-truncate" id="casting"></p>
+            <p class="mb-0 small text-muted text-truncate" id="grade"></p>
+            <span class="m-0" id="service-info"></span>
+        </li>
+    </template>
+</ul>
+
+<!-- element to trigger the IntersectionObserver -->
+<div class="d-flex justify-content-center mb-3" id="sentinel">
+    <div class="spinner-border" role="status"></div>
+</div>
+<!--전체-->
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<!--context menu-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.9.2/jquery.contextMenu.min.css" integrity="sha512-SWjZLElR5l3FxoO9Bt9Dy3plCWlBi1Mc9/OlojDPwryZxO0ydpZgvXMLhV6jdEyULGNWjKgZWiX/AMzIvZ4JuA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.9.2/jquery.contextMenu.min.js" integrity="sha512-kvg/Lknti7OoAw0GqMBP8B+7cGHvp4M9O9V6nAYG91FZVDMW3Xkkq5qrdMhrXiawahqU7IZ5CNsY/wWy1PpGTQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.9.2/jquery.ui.position.js" integrity="sha512-vBR2rismjmjzdH54bB2Gx+xSe/17U0iHpJ1gkyucuqlTeq+Q8zwL8aJDIfhQtnWMVbEKMzF00pmFjc9IPjzR7w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<!--bootstrap multiselect-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-multiselect/0.9.16/js/bootstrap-multiselect.min.js" integrity="sha512-ljeReA8Eplz6P7m1hwWa+XdPmhawNmo9I0/qyZANCCFvZ845anQE+35TuZl9+velym0TKanM2DXVLxSJLLpQWw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-multiselect/0.9.16/css/bootstrap-multiselect.min.css" integrity="sha512-wHTuOcR1pyFeyXVkwg3fhfK46QulKXkLq1kxcEEpjnAPv63B/R49bBqkJHLvoGFq6lvAEKlln2rE1JfIPeQ+iw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<!--sortableJS-->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js" integrity="sha256-DqWm+/v1Q0tgaHhTPLema89wDw8Ir+kIM10JePtjrZQ=" crossorigin="anonymous"></script>
+
+<style type="text/css">
+.small, small { font-size: 95%; }
+button.btn-outline-secondary { border: 1px solid #ced4da; border-radius: .25rem; }
+
+/* sortableJS */
+.sortable-handle { cursor: move; cursor: -webkit-grabbing; }
+.ghost { background-color: #f8f9fa; }
+
+/* to fix scroling problem on mobile devices */
+button.multiselect-option.dropdown-item { pointer-events:none; }
+
+span.form-check input,
+span.form-check label  { pointer-events: all; }
+
+/* custom popover */
+.popover-header { font-size: 0.8rem; }
+</style>
+
+<script type="text/javascript">
+    const package_name = "{{arg['package_name']}}";
+    const module_name = "{{arg['module_name']}}";
+    const list_url_base = `/${package_name}/ajax/${module_name}`;
+    const tving_disabled = "{{arg['tving_installed']}}" === "False";
+
+    // Get references to the dom elements
+    var scroller = document.querySelector("#movies-list");
+    var template = document.querySelector('#item-template');
+    var loaded = document.querySelector("#mv-loaded");
+    var sentinel = document.querySelector('#sentinel');
+
+    let counter = 0;
+    let page = 1;
+
+    // popover trigger https://stackoverflow.com/a/35048089
+    $("body").popover({
+        selector: '[data-toggle=popover]',
+        html: true,
+        placement: 'bottom',
+        trigger: 'focus'
+    });
+    $(document).on('click', 'a#movie-info', function (e) { e.preventDefault(); });
+
+    //
+    //
+    {% if sub == 'collections' %}
+    //
+    //
+    let list_url = list_url_base + "{{ arg['collections'][0]['val']|safe }}";
+
+    $(document).ready(function() {
+        document.getElementById('collection-sel').options[0].selected = 'selected';
+    });
+
+    $('select#collection-sel').change(function() {
+        reloadItems($('#collection-sel').val());
+    });
+    
+    $('#collection-edit-btn').on('click', function() {
+        document.getElementById("confirm_title").innerHTML = "콜렉션 수정";
+        document.getElementById("confirm_body").innerHTML = `
+            <ul class="list-group" id="collection-list">
+            {% for item in arg['collections'] %}
+                <li class="list-group-item" data-val="{{ item['val'] }}">
+                    <div class="d-flex w-100 justify-content-between">
+                        <a href="#" class="text-dark pl-1 pr-2 mr-2 sortable-handle" title="콜렉션 아이템 정렬"><i class="fa fa-sort"></i></a>
+                        <span class="text-truncate" contenteditable="true" style="flex: 1;">{{ item['key'] }}</span>
+                        <a href="#" class="text-danger pl-1 pr-2 ml-4" id="collection-item-remove-btn" title="콜렉션 아이템 삭제"><i class="fas fa-trash-alt"></i></a>
+                    </div>
+                </li>
+            {% endfor %}
+            </ul>`
+        $('#confirm_button').attr('onclick', 'save_collection_list();');
+        $("#confirm_modal").modal();
+        var el = document.getElementById('collection-list');
+        var sortable = new Sortable(el, {
+            animation: 150,
+            direction: 'vertical',
+            handle: ".sortable-handle",
+            ghostClass: 'ghost'
+        });
+        return;
+    });
+
+    $(document).on('click', '#collection-item-remove-btn', function(e){
+        e.preventDefault();
+        $(this).closest('li').remove();
+    });
+
+    function save_collection_list() {
+        var col_list = [];
+        var lis = document.getElementById('collection-list').children;
+        for (var i = 0, len = lis.length; i < len; i++ ) {
+            col_list.push({key: lis[i].innerText, val:lis[i].dataset['val']})
+        }
+        $.ajax({
+            url: `/${package_name}/ajax/${module_name}/save_collection`,
+            type: "POST",
+            cache: false,
+            dataType: "json",
+            data: {'list': JSON.stringify(col_list)},
+            success: function(data) {
+                if (data.success) {
+                    window.location.reload();                    
+                } else {
+                    $.notify('<strong>실패하였습니다.</strong><br>' + data.log, {
+                        type: 'warning'
+                    });
+                }
+            }
+        });
+    }
+    //
+    //
+    {% elif sub == 'search' %}
+    //
+    //
+    let list_url = list_url_base + "/search?";
+
+    $("#search-form").submit(function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var keyword = $("[name='search']", form).val();
+        if (keyword === "") {
+            return;
+        } else {
+            reloadItems(`/search?keyword=${encodeURIComponent(keyword)}`);
+        }
+    });
+    //
+    //
+    {% elif sub == 'movies' %}
+    //
+    //
+    let filterVal = JSON.parse({{arg['mov_incl_filter']|tojson}});
+    let filterValTmp = null;
+    let list_url = list_url_base + `/movies?${jQuery.param(filterVal)}`;
+    
+    $(document).ready(function() {
+        // init multiselect components
+        $('#filter-category').multiselect({
+            nonSelectedText: '전체 장르',
+            allSelectedText: '모두',
+            nSelectedText: '개 장르',
+            inheritClass: true,
+            maxHeight: 250,
+            numberDisplayed: 4,
+            onDropdownShow: function(event) {
+                filterValTmp = getFilterValue();
+            },
+            onDropdownHide: function(event) {
+                filterVal = getFilterValue();
+                if (filterValTmp.category != filterVal.category) {
+                    reloadItemsOnChange(filterVal);
+                }
+            }
+        });
+
+        $('select#filter-type').change(function() {
+            reloadItemsOnChange(getFilterValue());
+        });
+        $('select#filter-order').change(function() {
+            reloadItemsOnChange(getFilterValue());
+        });
+        $('#filter-diversityonly').change(function() {
+            reloadItemsOnChange(getFilterValue());
+        });
+
+        // buttons
+        $('#filter-reset-btn').on('click', function() {
+            resetFilterValue();
+        });
+
+        $('#new-collection-btn').on('click', function() {
+            document.getElementById("confirm_title").innerHTML = "콜렉션 추가";
+            document.getElementById("confirm_body").innerHTML = `
+            <form id="new-collection-form">
+                <div class="form-group">
+                    <label for="new-collection-name">새 콜렉션 이름</label>
+                    <input class="form-control" name="new-collection-name" aria-describedby="newCollectionNameHelp" type="text" required>
+                    <small id="newCollectionNameHelp" class="form-text text-muted">위 이름으로 콜렉션을 추가합니다.</small>
+                </div>
+                <div class="form-group">
+                    <label for="new-collection-val-sel">새 콜렉션 값</label>
+                    <select class="form-control" id="new-collection-val-sel">
+                        <option value="current" selected>현재 영화 필터</option>
+                        <option value="manual">직접 입력</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input class="form-control" name="new-collection-val" id="new-collection-val" type="text" required disabled>
+                </div>
+            </form>`;
+            $('#confirm_button').removeAttr('data-dismiss');
+            $('#confirm_button').attr('onclick', 'new_collection();');
+            $("#confirm_modal").modal();
+            $("#new-collection-val").val(`/movies?${jQuery.param(getFilterValue())}`);
+            return;
+        });
+
+        $('#filter-expand-btn').on('click', function() {
+            $('#advanced-filter').collapse('toggle');
+            if ($('#filter-expand-btn').html().includes('up')) {
+                $('#filter-expand-btn').html('<i class="fa fa-angle-down"></i>');
+            } else {
+                $('#filter-expand-btn').html('<i class="fa fa-angle-up"></i>');
+            }
+        });
+
+        if (!(filterVal.category === "" && filterVal.diversityonly == "False")) {
+            $('#filter-expand-btn').html('<i class="fa fa-angle-up"></i>');
+            $('#advanced-filter').collapse('show');
+        }
+    });
+
+    function new_collection() {
+        var form = document.getElementById('new-collection-form');
+        if (!form.reportValidity()) {
+            return false;
+        }
+        $.ajax({
+            url: `/${package_name}/ajax/${module_name}/new_collection`,
+            type: "POST",
+            cache: false,
+            dataType: "json",
+            data: {'key': $("[name='new-collection-name']", form).val(), 'val': $("[name='new-collection-val']", form).val()},
+            success: function(data) {
+                $('#confirm_modal').modal('hide');
+                if (data.success) {                
+                    $.notify('<strong>새 콜렉션을 추가하였습니다.</strong>', {
+                        type: 'success'
+                    });
+                } else {
+                    $.notify('<strong>실패하였습니다.</strong><br>' + data.log, {
+                        type: 'warning'
+                    });
+                }
+            }
+        });
+    }
+
+    $(document).on('change', '#new-collection-val-sel', function(e) {
+        e.preventDefault();
+        if ($("#new-collection-val-sel").val() == "current") {
+            $("#new-collection-val").val(`/movies?${jQuery.param(getFilterValue())}`);
+            $("#new-collection-val").attr('disabled', true);
+        } else {
+            $("#new-collection-val").val('');
+            $("#new-collection-val").attr('disabled', false);
+        }
+    });
+
+    function getFilterValue() {
+        return {
+            'type': $('#filter-type').val(),
+            'order': $('#filter-order').val(),
+            'category': $('#filter-category').val().join(','),
+            'diversityonly': $('#filter-diversityonly').is( ":checked" ) ? 'True' : 'False'
+        }
+    };
+
+    function resetFilterValue() {
+        $("#filter-type").val("all").prop("selected", true);
+        $("#filter-order").val("new").prop("selected", true);
+
+        $('#filter-category option:selected').each(function () {
+            $(this).prop('selected', false);
+        })
+        $('#filter-category').multiselect('refresh');
+        
+        $('#filter-diversityonly').prop('checked', false);
+
+        reloadItemsOnChange(getFilterValue());
+    };
+
+    function reloadItemsOnChange(filterValToApply) {
+        $.ajax({
+            url: `/${package_name}/ajax/${module_name}/save_filter`,
+            type: "POST",
+            cache: false,
+            dataType: "json",
+            data: filterValToApply,
+            success: function(data) {
+                if (data.success) {
+                    filterVal = filterValToApply;
+                    reloadItems(`/movies?${jQuery.param(filterValToApply)}`);
+                } else {
+                    $.notify('<strong>실패하였습니다.</strong><br>' + data.log, {
+                        type: 'warning'
+                    });
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // Function to request new items and render to the dom
+    // https://pythonise.com/categories/javascript/infinite-lazy-loading
+    function loadItems() {
+        // Use fetch to request data and pass the page value in the QS
+        fetch(`${list_url}&page=${page}`).then((response) => {
+            response.json().then((res) => {
+                if (!res.success) {
+                    sentinel.innerHTML = `ERROR: ${res.log}`;
+                    return;
+                }
+                // Iterate over the items in the response
+                for (var i = 0; i < res.data.list.length; i++) {
+                    render_single_item(res.data.list[i], false);
+                    // Increment the page
+                    counter += 1;
+                    // Update the counter
+                    loaded.innerText = `${counter}개의 영화`;
+                }
+                page += 1;
+                if (res.data.nomore) {
+                    sentinel.innerHTML = "No more items";
+                    intersectionObserver.unobserve(sentinel);
+                } else if (counter < 5) {
+                    // Temporary fix
+                    intersectionObserver.unobserve(sentinel);
+                    intersectionObserver.observe(sentinel);
+                }
+            })
+        })
+    }
+    
+    // Create a new IntersectionObserver instance
+    var intersectionObserver = new IntersectionObserver(entries => {
+        // Uncomment below to see the entry.intersectionRatio when
+        // the sentinel comes into view
+
+        // entries.forEach(entry => {
+        //   console.log(entry.intersectionRatio);
+        // })
+
+        // If intersectionRatio is 0, the sentinel is out of view
+        // and we don't need to do anything. Exit the function
+        if (entries[0].intersectionRatio <= 0) {
+            return;
+        }
+
+        // Call the loadItems function
+        loadItems();
+    });
+
+    // Instruct the IntersectionObserver to watch the sentinel
+    intersectionObserver.observe(sentinel);
+
+    function reloadItems(list_url_params='') {
+        list_url = list_url_base + list_url_params;
+        intersectionObserver.unobserve(sentinel);
+        scroller.querySelectorAll('*').forEach(n => n.remove());
+        page = 1;
+        counter = 0;
+        loaded.innerText = `${counter}개의 영화`;
+        sentinel.innerHTML = '<div class="spinner-border" role="status"></div>';
+        intersectionObserver.observe(sentinel);
+    }
+
+    function render_single_item(data) {
+        const datetime = new Date(data.p.datetime);
+        const datetimeFormat = new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            hour12: false,
+            minute: 'numeric'
+        });
+        
+        // Clone the HTML template
+        let template_clone = template.content.cloneNode(true);
+
+        template_clone.querySelector("li").dataset["json"] = JSON.stringify(data);
+
+        template_clone.querySelector("#movie-title").innerHTML = data.movie.name.ko;
+
+        template_clone.querySelector("#datetime").title = data.p.datetime;
+        template_clone.querySelector("#datetime").innerHTML = datetimeFormat.format(datetime);
+
+        let posterUrl = function() {
+            for (let i of data.movie.image) {
+                if (i.code == "CAIM2100") { return `https://image.tving.com${i.url}/dims/resize/236`; }
+            }
+            // transparent 1px blank image holder
+            //return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        }();
+        if (posterUrl === undefined) {
+            template_clone.querySelector("#poster").remove();
+        } else {
+            template_clone.querySelector("#poster").src = posterUrl;
+        }
+        
+        template_clone.querySelector("#movie-info").dataset["content"] = `<small>${data.movie.story.ko}</small><a href="http://www.tving.com/movie/player/${data.movie.code}?csite=tving_web" target="_blank" rel="noopener noreferrer" class="ml-2"><i class="fas fa-external-link-alt" aria-hidden="true"></i><a>`;
+        template_clone.querySelector("#movie-info").title = `${data.movie.name.en ? data.movie.name.en : 'N/A'}, ${data.movie.product_year}`;
+        template_clone.querySelector("#movie-info").innerHTML = `${data.movie.name.en ? data.movie.name.en : 'N/A'}, ${data.movie.product_year}`;
+        
+        if (data.movie.drm_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-info">DRM</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.movie.direct_ver_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-info">감독판</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.movie.extend_ver_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-info">확장판</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.movie.special_ver_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-info">스페셜</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.movie.diversity_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-info">다양성</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.movie.tving_original_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-danger">TVING ORIGINAL</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.movie.cine_same_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-danger">극장동시</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.movie.tving_exclusive_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-warning">TVING ONLY</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.movie.first_open_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-warning">최초공개</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.movie.dub_ver_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-info">더빙</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.movie.subtitle_ver_yn === "Y") {
+            $('<span class="mr-1 badge badge-pill badge-info">자막</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+        if (data.sale_package_yn === "N") {
+            $('<span class="mr-1 badge badge-pill badge-warning">개별구매</span>').insertAfter(template_clone.querySelector("#service-info"));
+        }
+
+        template_clone.querySelector("#summary").innerHTML = data.p.summary;
+        template_clone.querySelector("#director").innerHTML = data.p.director;
+        template_clone.querySelector("#casting").innerHTML = data.p.casting;
+        template_clone.querySelector("#grade").innerHTML = `${data.p.grade} 관람가`;
+
+        // Append template to dom
+        scroller.appendChild(template_clone);
+    }
+
+    $(function(){
+        $.contextMenu({
+            selector: 'h6 > a',
+            trigger: 'left',
+            callback: function(key, options) {
+                let json = $(this).closest("li").data('json');
+                if (key === "add_excl_movie") {
+                    append_filter('mov_excl_filter_movie', json.movie.code);
+                } else if (key === "add_excl_country") {
+                    append_filter('mov_excl_filter_country', json.p.country);
+                } else if (key === "add_excl_genre") {
+                    append_filter('mov_excl_filter_category', json.movie.category1_name.ko);
+                } else if (key === "view_json") {
+                    let json = $(this).closest("li").data('json');
+                    document.getElementById("modal_title").innerHTML = '상세 정보';
+                    document.getElementById("modal_body").innerHTML = "<pre>"+JSON.stringify(json, null, 2) + "</pre>";
+                    $("#large_modal").modal();
+                } else if (key === "download_m") {
+                    $(location).attr('href', `/tving/basic/download?code=${json.movie.code}`);
+                }
+            },
+            items: {
+                "download_m": {
+                    name: "다운로드",
+                    icon: "fas fa-download",
+                    disabled: tving_disabled
+                },
+                "add_excl": {
+                    name: "제외 필터에 추가",
+                    icon: "fas fa-plus",
+                    items: {
+                        "add_excl_movie": {
+                            name: "제외 영화에 추가",
+                            icon: "fas fa-plus"
+                        },
+                        "add_excl_country": {
+                            name: "제외 국가에 추가",
+                            icon: "fas fa-plus"
+                        },
+                        "add_excl_genre": {
+                            name: "제외 장르에 추가",
+                            icon: "fas fa-plus"
+                        }
+                    }
+                },
+                "sep1": "---------",
+                "view_json": {
+                    name: "JSON",
+                    icon: "fas fa-info-circle"
+                }
+            }
+        });
+    });
+
+    function append_filter(key, val) {
+        $.ajax({
+            url: `/${package_name}/ajax/${module_name}/append_filter`,
+            type: 'POST',
+            cache: false,
+            data: {
+                'key': key,
+                'val': val
+            },
+            dataType: "json",
+            success: function (data) {
+                if (data.success) {
+                    $.notify('<strong>추가하였습니다.</strong>', {
+                        type: 'success'
+                    });
+                } else {
+                    $.notify('<strong>실패하였습니다!</strong><br>' + data.log, {
+                        type: 'warning'
+                    });
+                }
+            }
+        });
+    }
+
+</script>
+
+
+{% endblock %}

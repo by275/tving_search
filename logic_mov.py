@@ -1,0 +1,460 @@
+# -*- coding: utf-8 -*-
+import re
+import sys
+import json
+import traceback
+from copy import deepcopy
+from datetime import datetime, timedelta
+
+# third-party
+from flask import request, render_template, jsonify
+
+# app common
+from framework.common.plugin import LogicModuleBase  # pylint: disable=import-error
+
+# pylint: disable=relative-beyond-top-level
+from .plugin import plugin
+from .logic_common import pathscrub, get_session, tving_global_search, apikey
+
+logger = plugin.logger
+package_name = plugin.package_name
+ModelSetting = plugin.ModelSetting
+
+product_country_map = {
+    "CACT1001": "한국",
+    "CACT4017": "프랑스",
+    "CACT4004": "독일",
+    "CACT4010": "영국",
+    "CACT4005": "러시아",
+    "CACT2002": "미국",
+    "CACT1008": "일본",
+    "CACT1012": "홍콩",
+    "CACT1009": "중국",
+    "CACT1011": "대만",
+    "CACT4025": "아일랜드",
+    "CACT1010": "태국",
+    "CACT9999": "슬로바키아",
+    "CACT4012": "이탈리아",
+    "CACT5001": "호주",
+    "CACT4009": "스페인",
+    "CACT2003": "캐나다",
+    "CACT4023": "노르웨이",
+    "CACT4018": "핀란드",
+    "CACT4006": "벨기에",
+    "CACT4013": "체코",
+    "CACT4003": "덴마크",
+    "CACT1006": "이란",
+    "CACT3002": "브라질",
+    "CACT1007": "인도",
+    "CACT4002": "네덜란드",
+    "CACT4015": "포르투칼",
+    "CACT5002": "뉴질랜드",
+    "CACT4016": "폴란드",
+    "CACT1004": "싱가포르",
+    "CACT1005": "아프가니스탄",
+    "CACT1013": "이스라엘",
+    "CACT1015": "아랍 에미리트",
+    "CACT2001": "멕시코",
+    "CACT3001": "베네수엘라",
+    "CACT3003": "아르헨티나",
+    "CACT3004": "푸에르토리코",
+    "CACT3005": "칠레",
+    "CACT4007": "스웨덴",
+    "CACT4008": "스위스",
+    "CACT4011": "오스트리아",
+    "CACT4014": "터키",
+    "CACT4019": "헝가리",
+    "CACT4020": "불가리아",
+    "CACT4027": "아이슬란드",
+    "CACT4028": "루마니아",
+    "CACT5003": "페루",
+}
+
+grade_code_map = {"CMMG0100": "전체", "CMMG0200": "12세", "CMMG0300": "15세", "CMMG0400": "19세"}
+
+
+class LogicMOV(LogicModuleBase):
+    db_default = {
+        "mov_excl_filter_enabled": "True",
+        "mov_excl_filter_movie": "",
+        "mov_excl_filter_category": "",
+        "mov_excl_filter_country": "",
+        "mov_incl_filter": json.dumps(
+            {
+                "type": "all",
+                "order": "new",
+                "category": "",
+                "diversityonly": "False",
+            }
+        ),
+        "mov_collection_list": json.dumps(
+            [
+                {"key": "TVING 4K", "val": "/highlights?key=SMTV_MV_4K"},
+                {"key": "TVING Original & Only", "val": "/curation?code=193"},
+            ]
+        ),
+    }
+
+    optlist = {
+        "type": [
+            {"key": "전체유형", "val": "all", "sel": ""},
+            {"key": "개별구매", "val": "nosalepackage", "sel": ""},
+            {"key": "티빙무료", "val": "salepackageonly", "sel": ""},
+        ],
+        "order": [
+            {"key": "최신순", "val": "new", "sel": ""},
+            {"key": "인기순", "val": "viewDay", "sel": ""},
+        ],
+        "category": [],
+    }
+
+    def __init__(self, P):
+        super(LogicMOV, self).__init__(P, None)
+        self.name = "mov"
+        self.first_menu = "movies"
+        self.sess = get_session()
+
+    def plugin_load(self):
+        self.optlist["category"] = [{"key": x["name"], "val": x["code"], "sel": ""} for x in self.tving_category()]
+
+    def process_menu(self, sub, req):
+        arg = ModelSetting.to_dict()
+        arg["package_name"] = package_name
+        arg["module_name"] = self.name
+        arg["tving_installed"] = True
+        try:
+            import tving
+        except ImportError:
+            arg["tving_installed"] = False
+
+        try:
+            if sub == "movies":
+                arg["optlist"] = deepcopy(self.optlist)
+                filter_val = json.loads(arg["mov_incl_filter"])
+                default_val = json.loads(self.db_default["mov_incl_filter"])
+                for k, v in arg["optlist"].items():
+                    for x in v:
+                        if x["val"] in filter_val.get(k, default_val[k]):
+                            x.update({"sel": "selected"})
+                arg["optlist"]["diversityonly"] = (
+                    filter_val.get("diversityonly", default_val["diversityonly"]) == "True"
+                )
+            elif sub == "collections":
+                arg["collections"] = json.loads(arg["mov_collection_list"])
+            if sub == "setting":
+                return render_template(f"{package_name}_{self.name}_{sub}.html", arg=arg)
+            else:
+                return render_template(f"{package_name}_{self.name}.html", arg=arg, sub=sub)
+        except Exception as e:
+            logger.error("Exception: %s", str(e))
+            logger.error(traceback.format_exc())
+            return render_template("sample.html", title=f"{package_name} - {self.name} - {sub}")
+
+    def process_ajax(self, sub, req):
+        try:
+            p = request.form.to_dict() if request.method == "POST" else request.args.to_dict()
+            page = p.get("page", "1")
+            if sub == "movies":
+                uparams = {
+                    "order": p.get("order", "new"),
+                    "categoryCode": p.get("category", ""),
+                    "multiCategoryCode": p.get("category", ""),
+                    "diversityYn": "Y" if p.get("diversityonly", "") == "True" else "",
+                }
+                ptype = p.get("type", "all")
+                if ptype != "all":
+                    if ptype == "salepackageonly":
+                        uparams.update({"productPackageCode": "2610061,2610161,261062"})
+                    elif ptype == "nosalepackage":
+                        uparams.update({"notProductPackageCode": "2610061,2610161,261062"})
+                    else:
+                        raise NotImplementedError(f"Unknown parameter: type={ptype}")
+
+                excl_filter_enabled = ModelSetting.get_bool("mov_excl_filter_enabled")
+                if excl_filter_enabled:
+                    uparams.update(
+                        {
+                            "notMovieCode": ",".join(
+                                x.strip() for x in ModelSetting.get("mov_excl_filter_movie").split(",")
+                            )
+                        }
+                    )
+                return jsonify(
+                    {
+                        "success": True,
+                        "data": self.tving_movies(uparams=uparams, page=page, excl_filter_enabled=excl_filter_enabled),
+                    }
+                )
+            elif sub == "search":
+                kwd = p.get("keyword", "")
+                if not kwd:
+                    return jsonify({"success": True, "data": {"list": [], "nomore": True}})
+                return jsonify({"success": True, "data": self.tving_search(kwd, page=page)})
+            elif sub == "highlights":
+                return jsonify(
+                    {
+                        "success": True,
+                        "data": self.tving_highlights(uparams={"positionKey": p.get("key", "")}, page=page),
+                    }
+                )
+            elif sub == "curation":
+                return jsonify({"success": True, "data": self.tving_curation(p.get("code", ""))})
+            elif sub == "save_filter":
+                keys = json.loads(self.db_default["mov_incl_filter"]).keys()
+                new_val = {key: p.get(key) for key in keys if key in p}
+                ModelSetting.set("mov_incl_filter", json.dumps(new_val))
+                return jsonify({"success": True})
+            elif sub == "append_filter":
+                db_key = p.get("key")
+                db_val = ModelSetting.get(db_key)
+                if db_val:
+                    db_val += ","
+                db_val += p.get("val", "")
+                ModelSetting.set(db_key, db_val)
+                return jsonify({"success": True})
+            elif sub == "new_collection":
+                new_key = p.get("key", "").strip()
+                if not new_key:
+                    return jsonify(({"success": False, "log": "잘못된 이름"}))
+                new_val = p.get("val").strip()
+                existing_list = json.loads(ModelSetting.get("mov_collection_list"))
+                if any(True for x in existing_list if x["key"] == new_key):
+                    return jsonify(({"success": False, "log": "이미 있는 이름"}))
+                ModelSetting.set("mov_collection_list", json.dumps([{"key": new_key, "val": new_val}] + existing_list))
+                return jsonify({"success": True})
+            elif sub == "save_collection":
+                ModelSetting.set("mov_collection_list", p.get("list"))
+                return jsonify({"success": True})
+            else:
+                raise NotImplementedError(f"잘못된 URL: {sub}")
+        except Exception as e:
+            logger.error("Exception: %s", str(e))
+            logger.error(traceback.format_exc())
+            return jsonify({"success": False, "log": str(e)})
+
+    def tving_mv_parser_one(self, item):
+        try:
+            product_country_txt = product_country_map[item["movie"]["product_country"]]
+        except Exception:
+            product_country_txt = item["movie"]["product_country"]
+        try:
+            grade_txt = [grade_code_map[item["movie"]["grade_code"]]]
+        except Exception:
+            grade_txt = [item["movie"]["grade_code"]]
+        release_date = str(item["movie"]["release_date"])
+        try:
+            service_open_date = datetime.strptime(str(item["service_open_date"]), "%Y%m%d%H%M%S").isoformat()
+        except Exception:
+            # not available for objects from curation api
+            service_open_date = datetime.strptime(str(item["movie"]["insert_date"]), "%Y%m%d%H%M%S").isoformat()
+
+        # 릴리즈 정보
+        summary = []
+        summary += [item["movie"]["category1_name"]["ko"]]
+        summary += [product_country_txt]
+
+        duration = divmod(int(item["movie"]["duration"]), 60)[0]
+        if duration > 0:
+            summary += [f"{str(duration)}분"]
+        if len(release_date) == 8:
+            summary += [f"{release_date} 공개"]
+
+        # 캐스팅 정보
+        casting = item["movie"]["actor"]
+        if len(casting) > 4:
+            casting = casting[:5]
+            casting[-1] += " 외"
+
+        # delete irrelevant keys in item
+        for k in [
+            "asp_info",
+            "billing_package_id",
+            "billing_package_id_type",
+            "program_sale_count",
+            "program_view_count",
+            "sale_count",
+            "view_count",
+            "support_info",
+        ]:
+            try:
+                del item[k]
+            except Exception:
+                pass
+
+        # add processed
+        item["p"] = {
+            "summary": " | ".join(summary),
+            "director": ", ".join(item["movie"]["director"]),
+            "casting": ", ".join(casting),
+            "grade": grade_txt,
+            "country": product_country_txt,
+            "datetime": service_open_date,
+        }
+
+        return item
+
+    def tving_mv_parser(self, items, excl_filter_enabled=False):
+        if excl_filter_enabled:
+            excl_genre = [
+                x.strip().replace(" ", "").lower()
+                for x in ModelSetting.get("mov_excl_filter_category").split(",")
+                if x.strip()
+            ]
+            excl_country = [
+                x.strip().replace(" ", "").lower()
+                for x in ModelSetting.get("mov_excl_filter_country").split(",")
+                if x.strip()
+            ]
+
+        # from items-retrieved-from-api to items-parsed-for-web
+        ret = []
+        for item in items:
+            try:
+                parsed_item = self.tving_mv_parser_one(item)
+                if (
+                    excl_filter_enabled
+                    and parsed_item["movie"]["category1_name"]["ko"].strip().replace(" ", "").lower() in excl_genre
+                ):
+                    continue
+                if excl_filter_enabled and parsed_item["p"]["country"].strip().replace(" ", "").lower() in excl_country:
+                    continue
+                if bool(parsed_item):
+                    ret.append(parsed_item)
+            except Exception as e:
+                logger.error("Exception: %s", str(e))
+                logger.error(traceback.format_exc())
+        return ret
+
+    def tving_search(self, keyword, page="1"):
+        data = tving_global_search(keyword, self.name, page=page, session=self.sess)
+        codes = [x["mast_cd"] for x in data["list"]]
+
+        mv_list, no_more = [], data["nomore"]
+        if codes:
+            uparams = {"movieCode": ",".join(codes), "notMovieCode": ""}
+            ret = self.tving_movies(uparams=uparams, page="1")
+
+            # NOTE: pageSize for tving_movies should be larger then or equal to len(codes)
+            assert len(codes) == len(
+                ret["list"]
+            ), f"Incomplete Search: requested {len(codes)} but received {len(ret['list'])}"
+
+            # reorder to match with a searched result
+            for code in codes:
+                mv_list += [x for x in ret["list"] if x["movie"]["code"] == code]
+        return {"list": mv_list, "nomore": no_more}
+
+    def tving_movies(self, uparams={}, page="1", excl_filter_enabled=False):
+        api_url = "https://api.tving.com/v2/media/movies"
+        params = {
+            "pageNo": page,
+            "pageSize": "24",
+            "order": "new",
+            "adult": "all",
+            "free": "all",
+            "guest": "all",
+            "scope": "all",
+            "movieCode": "",
+            "notMovieCode": "",
+            "categoryCode": "",
+            "productPackageCode": "",
+            "multiCategoryCode": "",
+            "personal": "N",
+            "screenCode": "CSSD0100",
+            "networkCode": "CSND0900",
+            "osCode": "CSOD0900",
+            "teleCode": "CSCD0900",
+            "apiKey": apikey,
+        }
+        if bool(uparams):
+            params.update(uparams)
+
+        res = self.sess.get(api_url, params=params)
+        res.raise_for_status()
+        data = res.json()
+
+        mv_list, no_more = [], True
+        if data["header"]["status"] == 200:
+            mv_list = data["body"]["result"]
+            no_more = data["body"]["has_more"].lower() != "y"
+        return {
+            "list": self.tving_mv_parser(mv_list, excl_filter_enabled=excl_filter_enabled) if mv_list else [],
+            "nomore": no_more,
+        }
+
+    def tving_highlights(self, uparams={}, page="1"):
+        api_url = "https://api.tving.com/v2/operator/highlights"
+        pagesize = "20"
+        params = {
+            "mainYn": "Y",
+            "pageNo": page,
+            "pageSize": pagesize,
+            "screenCode": "CSSD0100",
+            "networkCode": "CSND0900",
+            "osCode": "CSOD0900",
+            "teleCode": "CSCD0900",
+            "apiKey": apikey,
+        }
+        if bool(uparams):
+            params.update(uparams)
+
+        res = self.sess.get(api_url, params=params)
+        res.raise_for_status()
+        data = res.json()
+
+        mv_list, no_more = [], True
+        if data["header"]["status"] == 200 and data["body"]["result"]:
+            mv_list = [x["content"] for x in data["body"]["result"]]
+            no_more = len(data["body"]["result"]) != int(pagesize)
+        return {"list": self.tving_mv_parser(mv_list) if mv_list else [], "nomore": no_more}
+
+    def tving_curation(self, code, uparams={}):
+        api_url = f"https://api.tving.com/v2/media/movie/curation/{code}"
+        params = {
+            "screenCode": "CSSD0100",
+            "networkCode": "CSND0900",
+            "osCode": "CSOD0900",
+            "teleCode": "CSCD0900",
+            "apiKey": apikey,
+        }
+        if bool(uparams):
+            params.update(uparams)
+
+        res = self.sess.get(api_url, params=params)
+        res.raise_for_status()
+        data = res.json()
+
+        mv_list, no_more = [], True
+        if data["header"]["status"] == 200:
+            mv_list = [{"movie": x} for x in data["body"]["movies"]]
+        return {"list": self.tving_mv_parser(mv_list) if mv_list else [], "nomore": no_more}
+
+    def tving_category(self):
+        api_url = "https://api.tving.com/v2/media/movie/categories"
+        params = {
+            "pageNo": "1",
+            "pageSize": "10",
+            "order": "new",
+            "free": "y",
+            "adult": "n",
+            "guest": "all",
+            "scope": "all",
+            "screenCode": "CSSD0100",
+            "networkCode": "CSND0900",
+            "osCode": "CSOD0900",
+            "teleCode": "CSCD0900",
+            "apiKey": apikey,
+        }
+
+        res = self.sess.get(api_url, params=params)
+        res.raise_for_status()
+        data = res.json()
+
+        cate_list = {}
+        if data["header"]["status"] == 200 and data["body"]["result"]:
+            cate_list = [
+                {"code": x["category_code"], "name": x["category_name"]}
+                for x in data["body"]["result"]
+                if x["category_code"]
+            ]
+        return cate_list

@@ -1,0 +1,42 @@
+{% extends "base.html" %} {% block content %}
+
+<div>
+    <nav>
+        {{ macros.m_tab_head_start() }} 
+            {{ macros.m_tab_head('일반', true) }} 
+        {{ macros.m_tab_head_end() }}
+    </nav>
+    <div class="tab-content mb-3" id="nav-tabContent">
+        <!-- 일반 -->
+        {{ macros.m_tab_content_start('일반', true) }}
+        <form id="setting" name="setting">
+            {{ macros.setting_checkbox('mov_excl_filter_enabled', '제외 필터', value=arg['mov_excl_filter_enabled'], desc=['제외 필터는 최신순, 인기순에서만 적용 됩니다.']) }}
+            <div id="mov_excl_filter_enabled_div" class="collapse{{ ' show' if arg['mov_excl_filter_enabled'] == 'True' else '' }}">
+            {{ macros.setting_input_text('mov_excl_filter_movie', '제외 영화', value=arg['mov_excl_filter_movie'], desc=['M으로 시작하는 영화 코드를 ,로 구분하여 입력']) }}
+            {{ macros.setting_input_text('mov_excl_filter_country', '제외 국가', value=arg['mov_excl_filter_country'], desc=['제외할 국가를 ,로 구분하여 입력']) }}
+            {{ macros.setting_input_text('mov_excl_filter_category', '제외 장르', value=arg['mov_excl_filter_category'], desc=['제외할 장르를 ,로 구분하여 입력']) }}
+            </div>
+            {{ macros.setting_button([['global_setting_save_btn', '저장']]) }}
+        </form>
+        {{ macros.m_tab_content_end() }}
+    </div>
+    <!--tab-content-->
+</div>
+<!--전체-->
+
+
+
+<script type="text/javascript">
+    var package_name = "{{arg['package_name']}}";
+
+    $(document).ready(function() {
+        
+    });
+
+    $('#mov_excl_filter_enabled').change(function() {
+        use_collapse('mov_excl_filter_enabled');
+    });
+
+</script>
+
+{% endblock %}

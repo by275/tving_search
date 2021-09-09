@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from .plugin import plugin as p
+from .plugin import plugin as p  # pylint: disable=import-error
 
 blueprint = p.blueprint
 menu = p.menu
