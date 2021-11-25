@@ -88,7 +88,13 @@ $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', function(e) {
     data: {keyword:$(this).data('key')},
     dataType: "json",
     success: function (data) {
-      make_ratings_to(data, targetTabcontent);
+      if (data.success) {
+        make_ratings_to(data.data, targetTabcontent);
+      } else {
+          $.notify('<strong>실패하였습니다!</strong><br>' + data.log, {
+              type: 'warning'
+          });
+      }
     }
   })
 });
@@ -107,8 +113,7 @@ function make_ratings_to(data, renderTo){
     str += `<span class="badge badge-light mt-1" style="background-color: rgba(248, 249, 250, 0.7); position:absolute; top:0px; left:3px;">${data[i].ratings}${data[i].scheduled}</span>`;
     str += '<div class="card-body p-3">';
     str += `<a href="#" target="_blank" data-id="${data[i].title}" data-href="${data[i].href}" rel="noopener noreferrer"><strong class="card-title mb-0 text-truncate d-inline-block w-100" title="${data[i].title}">${data[i].title}</strong></a>`;
-    str += `<p class="card-text mb-1 text-truncate d-inline-block w-100">${data[i].provider}</p>`;
-    str += `<p class="card-text mb-0"><small class="text-muted text-truncate d-inline-block">${data[i].air_time}</small></p>`;
+    str += `<p class="card-text mb-0 text-truncate d-inline-block w-100">${data[i].provider}<br><small class="text-muted text-truncate d-inline-block">${data[i].air_time}</small></p>`;
     str += '</div>';
     str += '</div>';
     str += '</div>';
@@ -127,8 +132,20 @@ function option_process(mode, value) {
     dataType: "json",
     success: function (data) {
       if (data == 'success') $.notify('<strong>추가하였습니다.</strong>', {type: 'success'});
-      else if (data == 'already') $.notify('<strong>이미 설정되어 있습니다.</strong>', {type: 'warning'});
-      else $.notify('<strong>실패</strong>', {type: 'warning'});
+      else if (data == 'already') {
+        $.ajax({
+          url: '/' + package_name + '/ajax/' + module_name + '/pop_whitelist_program',
+          type: "POST",
+          cache: false,
+          data: {value:value},
+          dataType: "json",
+          success: function (data) {
+            if (data.success) $.notify('<strong>제거하였습니다.</strong>', {type: 'warning'});
+            else $.notify('<strong>제거 실패!</strong><br>' + data.log, {type: 'warning'});
+          }
+        })
+      }
+      else $.notify('<strong>추가 실패!</strong>', {type: 'warning'});
     }
   });
 }

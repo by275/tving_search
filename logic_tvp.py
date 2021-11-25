@@ -211,14 +211,15 @@ class LogicTVP(LogicModuleBase):
                 ModelSetting.set("tvp_collection_list", p.get("list"))
                 return jsonify({"success": True})
             if sub == "ratings":
-                try:
-                    keyword = request.form["keyword"]
-                    ret = self.get_daum_ratings(keyword)
-                    return jsonify(ret)
-                except Exception as e:
-                    logger.error("Exception:%s", e)
-                    logger.error(traceback.format_exc())
-                    return jsonify("fail")
+                keyword = request.form["keyword"]
+                return jsonify({"success": True, "data": self.get_daum_ratings(keyword)})
+            if sub == "pop_whitelist_program":
+                from bot_downloader_ktv import P as ktv_plugin
+
+                whitelist_program = ktv_plugin.ModelSetting.get_list("vod_whitelist_program", "|")
+                whitelist_program.remove(p.get("value", None))
+                ktv_plugin.ModelSetting.set("vod_whitelist_program", " | ".join(whitelist_program))
+                return jsonify({"success": True})
             raise NotImplementedError(f"잘못된 URL: {sub}")
         except Exception as e:
             logger.error("Exception: %s", str(e))

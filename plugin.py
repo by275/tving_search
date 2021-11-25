@@ -24,7 +24,7 @@ class PlugIn:
 
     plugin_info = {
         "category_name": "vod",
-        "version": "0.3.0",
+        "version": "0.3.1",
         "name": "tving_search",
         "home": "https://github.com/by275/tving_search",
         "more": "https://github.com/by275/tving_search",
