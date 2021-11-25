@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
 import re
-import sys
 import json
 import traceback
 from copy import deepcopy
@@ -8,9 +6,13 @@ from datetime import datetime, timedelta, date
 
 # third-party
 from flask import request, render_template, jsonify
+from lxml import html
 
-# app common
-from framework.common.plugin import LogicModuleBase  # pylint: disable=import-error
+# pylint: disable=import-error
+from framework.common.plugin import LogicModuleBase
+from framework import py_urllib
+from framework.common.daum import headers, session
+from system.logic_site import SystemLogicSite
 
 # pylint: disable=relative-beyond-top-level
 from .plugin import plugin
@@ -41,9 +43,9 @@ class LogicTVP(LogicModuleBase):
             [
                 {"key": "새로 시작하는 프로그램", "val": "/highlights?key=AND_RE_VODHOME_NEW_PM_LIST"},
                 {"key": "TVING 4K", "val": "/highlights?key=SMTV_PROG_4K"},
-                {"key": "TVING Original & Only", "val": "/theme?sec=106084/288880"},
+                {"key": "TVING Original & Only", "val": "/theme?sec=106084/292472"},
                 {"key": "공개 예정작", "val": "/theme?sec=106681/289468"},
-                {"key": "화제의 종영작", "val": "/theme?sec=93381/273665"},
+                {"key": "화제의 종영작", "val": "/theme?sec=93381/292567"},
             ]
         ),
     }
@@ -65,7 +67,7 @@ class LogicTVP(LogicModuleBase):
     }
 
     def __init__(self, P):
-        super(LogicTVP, self).__init__(P, None)
+        super().__init__(P, None)
         self.name = "tvp"
         self.first_menu = "episodes"
         self.sess = get_session()
@@ -79,10 +81,16 @@ class LogicTVP(LogicModuleBase):
         arg["package_name"] = package_name
         arg["module_name"] = self.name
         arg["tving_installed"] = True
+        arg["bot_ktv_installed"] = True
+        # pylint: disable=unused-import,import-outside-toplevel
         try:
             import tving
         except ImportError:
             arg["tving_installed"] = False
+        try:
+            import bot_downloader_ktv
+        except ImportError:
+            arg["bot_ktv_installed"] = False
 
         try:
             if sub == "episodes":
@@ -96,10 +104,10 @@ class LogicTVP(LogicModuleBase):
                 arg["optlist"]["lastonly"] = filter_val.get("lastonly", default_val["lastonly"]) == "True"
             elif sub == "collections":
                 arg["collections"] = json.loads(arg["tvp_collection_list"])
-            if sub == "setting":
+            if sub in ("setting", "ratings"):
+                logger.info("sub: %s", sub)
                 return render_template(f"{package_name}_{self.name}_{sub}.html", arg=arg)
-            else:
-                return render_template(f"{package_name}_{self.name}.html", arg=arg, sub=sub)
+            return render_template(f"{package_name}_{self.name}.html", arg=arg, sub=sub)
         except Exception as e:
             logger.error("Exception: %s", str(e))
             logger.error(traceback.format_exc())
@@ -158,7 +166,7 @@ class LogicTVP(LogicModuleBase):
                         ),
                     }
                 )
-            elif sub == "search":
+            if sub == "search":
                 kwd = p.get("keyword", "")
                 if not kwd:
                     return jsonify({"success": True, "data": {"list": [], "nomore": True}})
@@ -167,21 +175,21 @@ class LogicTVP(LogicModuleBase):
                     uparams = {"programCode": kwd, "lastFrequency": "frequencyDesc"}
                     return jsonify({"success": True, "data": self.tving_episodes(uparams=uparams, page=page)})
                 return jsonify({"success": True, "data": self.tving_search(kwd, page=page)})
-            elif sub == "highlights":
+            if sub == "highlights":
                 return jsonify(
                     {
                         "success": True,
                         "data": self.tving_highlights(uparams={"positionKey": p.get("key", "")}, page=page),
                     }
                 )
-            elif sub == "theme":
+            if sub == "theme":
                 return jsonify({"success": True, "data": self.tving_theme(p.get("sec", ""), page=page)})
-            elif sub == "save_filter":
+            if sub == "save_filter":
                 keys = json.loads(self.db_default["tvp_incl_filter"]).keys()
                 new_val = {key: p.get(key) for key in keys if key in p}
                 ModelSetting.set("tvp_incl_filter", json.dumps(new_val))
                 return jsonify({"success": True})
-            elif sub == "append_filter":
+            if sub == "append_filter":
                 db_key = p.get("key")
                 db_val = ModelSetting.get(db_key)
                 if db_val:
@@ -189,7 +197,7 @@ class LogicTVP(LogicModuleBase):
                 db_val += p.get("val", "")
                 ModelSetting.set(db_key, db_val)
                 return jsonify({"success": True})
-            elif sub == "new_collection":
+            if sub == "new_collection":
                 new_key = p.get("key", "").strip()
                 if not new_key:
                     return jsonify(({"success": False, "log": "잘못된 이름"}))
@@ -199,11 +207,19 @@ class LogicTVP(LogicModuleBase):
                     return jsonify(({"success": False, "log": "이미 있는 이름"}))
                 ModelSetting.set("tvp_collection_list", json.dumps([{"key": new_key, "val": new_val}] + existing_list))
                 return jsonify({"success": True})
-            elif sub == "save_collection":
+            if sub == "save_collection":
                 ModelSetting.set("tvp_collection_list", p.get("list"))
                 return jsonify({"success": True})
-            else:
-                raise NotImplementedError(f"잘못된 URL: {sub}")
+            if sub == "ratings":
+                try:
+                    keyword = request.form["keyword"]
+                    ret = self.get_daum_ratings(keyword)
+                    return jsonify(ret)
+                except Exception as e:
+                    logger.error("Exception:%s", e)
+                    logger.error(traceback.format_exc())
+                    return jsonify("fail")
+            raise NotImplementedError(f"잘못된 URL: {sub}")
         except Exception as e:
             logger.error("Exception: %s", str(e))
             logger.error(traceback.format_exc())
@@ -333,7 +349,7 @@ class LogicTVP(LogicModuleBase):
                 ep_list += [x for x in ret["list"] if x["program"]["code"] == code]
         return {"list": ep_list, "nomore": no_more}
 
-    def tving_episodes(self, uparams={}, page="1", excl_filter_enabled=False):
+    def tving_episodes(self, uparams=None, page="1", excl_filter_enabled=False):
         api_url = "https://api.tving.com/v2/media/episodes"
         params = {
             "pageNo": page,
@@ -358,7 +374,7 @@ class LogicTVP(LogicModuleBase):
             "apiKey": apikey,
         }
         # not을 포함한 제외필터가 우선함
-        if bool(uparams):
+        if uparams and isinstance(uparams, dict):
             params.update(uparams)
         res = self.sess.get(api_url, params=params)
         res.raise_for_status()
@@ -373,7 +389,7 @@ class LogicTVP(LogicModuleBase):
             "nomore": no_more,
         }
 
-    def tving_highlights(self, uparams={}, page="1"):
+    def tving_highlights(self, uparams=None, page="1"):
         api_url = "https://api.tving.com/v2/operator/highlights"
         pagesize = "20"
         params = {
@@ -386,7 +402,7 @@ class LogicTVP(LogicModuleBase):
             "teleCode": "CSCD0900",
             "apiKey": apikey,
         }
-        if bool(uparams):
+        if uparams and isinstance(uparams, dict):
             params.update(uparams)
 
         res = self.sess.get(api_url, params=params)
@@ -399,7 +415,7 @@ class LogicTVP(LogicModuleBase):
             no_more = len(data["body"]["result"]) != int(pagesize)
         return {"list": self.tving_ep_parser(ep_list) if ep_list else [], "nomore": no_more}
 
-    def tving_theme(self, seq, uparams={}, page="1"):
+    def tving_theme(self, seq, uparams=None, page="1"):
         api_url = f"https://api.tving.com/v2/operator/theme/{seq}"
         params = {
             "pocCode": "POCD0400",
@@ -412,7 +428,7 @@ class LogicTVP(LogicModuleBase):
             "teleCode": "CSCD0900",
             "apiKey": apikey,
         }
-        if bool(uparams):
+        if uparams and isinstance(uparams, dict):
             params.update(uparams)
 
         res = self.sess.get(api_url, params=params)
@@ -467,3 +483,38 @@ class LogicTVP(LogicModuleBase):
         if data["header"]["status"] == 200 and data["body"]["result"]:
             cate_list = [{"code": x["cate_cd"], "name": x["cate_nm"]} for x in data["body"]["result"]]
         return cate_list
+
+    def get_daum_ratings(self, keyword):
+        # drama_keywords = {'월화드라마', '수목드라마', '금요/주말드라마', '일일/아침드라마'}
+        # ent_keywords = {'월요일예능', '화요일예능', '수요일예능', '목요일예능', '금요일예능', '토요일예능', '일요일예능'}
+
+        url = "https://search.daum.net/search?w=tot&q=%s" % py_urllib.quote(keyword)
+        res = session.get(url, headers=headers, cookies=SystemLogicSite.get_daum_cookies())
+        root = html.fromstring(res.content)
+        list_program = root.xpath('//ol[@class="list_program item_cont"]/li')
+
+        data = []
+        for item in list_program:
+            data_item = {}
+            data_item["title"] = item.xpath("./div/strong/a/text()")[0]
+            data_item["href"] = item.xpath("./div/strong/a")[0].get("href")
+            data_item["href"] = "https://search.daum.net/search?" + data_item["href"]
+            data_item["air_time"] = item.xpath("./div/span[1]/text()")[0]
+            data_item["provider"] = item.xpath('./div/span[@class="txt_subinfo"][2]/text()')[0]
+            data_item["image"] = item.xpath("./a/img/@src")
+            data_item["scheduled"] = item.xpath('./div/span[@class="txt_subinfo"]/span[@class="txt_subinfo"]/text()')
+            data_item["ratings"] = item.xpath('./div/span[@class="txt_subinfo"][2]/span[@class="f_red"]/text()')
+
+            if len(data_item["image"]):
+                data_item["image"] = data_item["image"][0]
+            else:
+                data_item["image"] = "http://www.okbible.com/data/skin/okbible_1/images/common/noimage.gif"
+                # data_item['image'] = 'https://search1.daumcdn.net/search/statics/common/pi/thumb/noimage_151203.png'
+            if data_item["scheduled"]:
+                data_item["scheduled"] = data_item["scheduled"][0]
+            if data_item["ratings"]:
+                data_item["ratings"] = data_item["ratings"][0]
+
+            data.append(data_item)
+
+        return data

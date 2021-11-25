@@ -1,16 +1,17 @@
-# -*- coding: utf-8 -*-
 import os
 
 # third-party
 from flask import Blueprint
 
 # pylint: disable=import-error
+from framework import app, path_data
+from framework.util import Util
 from framework.logger import get_logger
 from framework.common.plugin import get_model_setting, Logic, default_route
 
 
-class PlugIn(object):
-    package_name = __name__.split(".")[0]
+class PlugIn:
+    package_name = __name__.split(".", maxsplit=1)[0]
     logger = get_logger(package_name)
     ModelSetting = get_model_setting(package_name, logger)
 
@@ -23,7 +24,7 @@ class PlugIn(object):
 
     plugin_info = {
         "category_name": "vod",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "name": "tving_search",
         "home": "https://github.com/by275/tving_search",
         "more": "https://github.com/by275/tving_search",
@@ -41,6 +42,7 @@ class PlugIn(object):
                 ["setting", "설정"],
                 ["episodes", "에피소드"],
                 ["collections", "콜렉션"],
+                ["ratings", "시청률"],
                 ["search", "검색"],
             ],
             "mov": [
@@ -58,12 +60,8 @@ class PlugIn(object):
     logic = None
 
     def __init__(self):
-        from framework import app, path_data
-
         db_file = os.path.join(path_data, "db", f"{self.package_name}.db")
         app.config["SQLALCHEMY_BINDS"][self.package_name] = f"sqlite:///{db_file}"
-
-        from framework.util import Util
 
         Util.save_from_dict_to_json(self.plugin_info, os.path.join(os.path.dirname(__file__), "info.json"))
 

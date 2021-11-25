@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-import re
-import sys
 import json
 import traceback
 from copy import deepcopy
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # third-party
 from flask import request, render_template, jsonify
@@ -14,7 +11,7 @@ from framework.common.plugin import LogicModuleBase  # pylint: disable=import-er
 
 # pylint: disable=relative-beyond-top-level
 from .plugin import plugin
-from .logic_common import pathscrub, get_session, tving_global_search, apikey
+from .logic_common import get_session, tving_global_search, apikey
 
 logger = plugin.logger
 package_name = plugin.package_name
@@ -109,7 +106,7 @@ class LogicMOV(LogicModuleBase):
     }
 
     def __init__(self, P):
-        super(LogicMOV, self).__init__(P, None)
+        super().__init__(P, None)
         self.name = "mov"
         self.first_menu = "movies"
         self.sess = get_session()
@@ -122,6 +119,7 @@ class LogicMOV(LogicModuleBase):
         arg["package_name"] = package_name
         arg["module_name"] = self.name
         arg["tving_installed"] = True
+        # pylint: disable=unused-import,import-outside-toplevel
         try:
             import tving
         except ImportError:
@@ -143,8 +141,7 @@ class LogicMOV(LogicModuleBase):
                 arg["collections"] = json.loads(arg["mov_collection_list"])
             if sub == "setting":
                 return render_template(f"{package_name}_{self.name}_{sub}.html", arg=arg)
-            else:
-                return render_template(f"{package_name}_{self.name}.html", arg=arg, sub=sub)
+            return render_template(f"{package_name}_{self.name}.html", arg=arg, sub=sub)
         except Exception as e:
             logger.error("Exception: %s", str(e))
             logger.error(traceback.format_exc())
@@ -185,26 +182,26 @@ class LogicMOV(LogicModuleBase):
                         "data": self.tving_movies(uparams=uparams, page=page, excl_filter_enabled=excl_filter_enabled),
                     }
                 )
-            elif sub == "search":
+            if sub == "search":
                 kwd = p.get("keyword", "")
                 if not kwd:
                     return jsonify({"success": True, "data": {"list": [], "nomore": True}})
                 return jsonify({"success": True, "data": self.tving_search(kwd, page=page)})
-            elif sub == "highlights":
+            if sub == "highlights":
                 return jsonify(
                     {
                         "success": True,
                         "data": self.tving_highlights(uparams={"positionKey": p.get("key", "")}, page=page),
                     }
                 )
-            elif sub == "curation":
+            if sub == "curation":
                 return jsonify({"success": True, "data": self.tving_curation(p.get("code", ""))})
-            elif sub == "save_filter":
+            if sub == "save_filter":
                 keys = json.loads(self.db_default["mov_incl_filter"]).keys()
                 new_val = {key: p.get(key) for key in keys if key in p}
                 ModelSetting.set("mov_incl_filter", json.dumps(new_val))
                 return jsonify({"success": True})
-            elif sub == "append_filter":
+            if sub == "append_filter":
                 db_key = p.get("key")
                 db_val = ModelSetting.get(db_key)
                 if db_val:
@@ -212,7 +209,7 @@ class LogicMOV(LogicModuleBase):
                 db_val += p.get("val", "")
                 ModelSetting.set(db_key, db_val)
                 return jsonify({"success": True})
-            elif sub == "new_collection":
+            if sub == "new_collection":
                 new_key = p.get("key", "").strip()
                 if not new_key:
                     return jsonify(({"success": False, "log": "잘못된 이름"}))
@@ -222,11 +219,10 @@ class LogicMOV(LogicModuleBase):
                     return jsonify(({"success": False, "log": "이미 있는 이름"}))
                 ModelSetting.set("mov_collection_list", json.dumps([{"key": new_key, "val": new_val}] + existing_list))
                 return jsonify({"success": True})
-            elif sub == "save_collection":
+            if sub == "save_collection":
                 ModelSetting.set("mov_collection_list", p.get("list"))
                 return jsonify({"success": True})
-            else:
-                raise NotImplementedError(f"잘못된 URL: {sub}")
+            raise NotImplementedError(f"잘못된 URL: {sub}")
         except Exception as e:
             logger.error("Exception: %s", str(e))
             logger.error(traceback.format_exc())
@@ -344,7 +340,7 @@ class LogicMOV(LogicModuleBase):
                 mv_list += [x for x in ret["list"] if x["movie"]["code"] == code]
         return {"list": mv_list, "nomore": no_more}
 
-    def tving_movies(self, uparams={}, page="1", excl_filter_enabled=False):
+    def tving_movies(self, uparams=None, page="1", excl_filter_enabled=False):
         api_url = "https://api.tving.com/v2/media/movies"
         params = {
             "pageNo": page,
@@ -366,7 +362,7 @@ class LogicMOV(LogicModuleBase):
             "teleCode": "CSCD0900",
             "apiKey": apikey,
         }
-        if bool(uparams):
+        if uparams and isinstance(uparams, dict):
             params.update(uparams)
 
         res = self.sess.get(api_url, params=params)
@@ -382,7 +378,7 @@ class LogicMOV(LogicModuleBase):
             "nomore": no_more,
         }
 
-    def tving_highlights(self, uparams={}, page="1"):
+    def tving_highlights(self, uparams=None, page="1"):
         api_url = "https://api.tving.com/v2/operator/highlights"
         pagesize = "20"
         params = {
@@ -395,7 +391,7 @@ class LogicMOV(LogicModuleBase):
             "teleCode": "CSCD0900",
             "apiKey": apikey,
         }
-        if bool(uparams):
+        if uparams and isinstance(uparams, dict):
             params.update(uparams)
 
         res = self.sess.get(api_url, params=params)
@@ -408,7 +404,7 @@ class LogicMOV(LogicModuleBase):
             no_more = len(data["body"]["result"]) != int(pagesize)
         return {"list": self.tving_mv_parser(mv_list) if mv_list else [], "nomore": no_more}
 
-    def tving_curation(self, code, uparams={}):
+    def tving_curation(self, code, uparams=None):
         api_url = f"https://api.tving.com/v2/media/movie/curation/{code}"
         params = {
             "screenCode": "CSSD0100",
@@ -417,7 +413,7 @@ class LogicMOV(LogicModuleBase):
             "teleCode": "CSCD0900",
             "apiKey": apikey,
         }
-        if bool(uparams):
+        if uparams and isinstance(uparams, dict):
             params.update(uparams)
 
         res = self.sess.get(api_url, params=params)

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="btn-group btn-group-sm flex-wrap mt-0 mb-2" role="group">
+    <button type="button" id="show-dra-btn" class="btn btn-outline-success btn-sm">드라마</button>
+    <button type="button" id="show-ent-btn" class="btn btn-outline-success btn-sm">예능</button>
+</div>
+
+<div id="nav" class="mb-3"></div>
+
+<!--font-awesome-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<!--context menu-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.9.2/jquery.contextMenu.min.css" integrity="sha512-SWjZLElR5l3FxoO9Bt9Dy3plCWlBi1Mc9/OlojDPwryZxO0ydpZgvXMLhV6jdEyULGNWjKgZWiX/AMzIvZ4JuA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.9.2/jquery.contextMenu.min.js" integrity="sha512-kvg/Lknti7OoAw0GqMBP8B+7cGHvp4M9O9V6nAYG91FZVDMW3Xkkq5qrdMhrXiawahqU7IZ5CNsY/wWy1PpGTQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.9.2/jquery.ui.position.js" integrity="sha512-vBR2rismjmjzdH54bB2Gx+xSe/17U0iHpJ1gkyucuqlTeq+Q8zwL8aJDIfhQtnWMVbEKMzF00pmFjc9IPjzR7w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script type="text/javascript">
+const package_name = "{{arg['package_name'] }}";
+const module_name = "{{arg['module_name']}}";
+const bot_ktv_installed = "{{arg['bot_ktv_installed']}}" === "False";
+
+$(document).ready(function(){
+  show_nav_dra();
+});
+
+function show_nav_dra() {
+  document.getElementById("nav").innerHTML = `
+  <nav>
+    <div class="nav nav-tabs" id="nav-tab" role="tablist">
+      <a class="nav-item nav-link" id="nav-dra1-tab" data-toggle="tab" href="#nav-dra1" role="tab" aria-controls="nav-dra1" aria-selected="false" data-key="월화드라마">월화</a>
+      <a class="nav-item nav-link" id="nav-dra2-tab" data-toggle="tab" href="#nav-dra2" role="tab" aria-controls="nav-dra2" aria-selected="false" data-key="수목드라마">수목</a>
+      <a class="nav-item nav-link" id="nav-dra3-tab" data-toggle="tab" href="#nav-dra3" role="tab" aria-controls="nav-dra3" aria-selected="false" data-key="금요/주말드라마">금요/주말</a>
+      <a class="nav-item nav-link" id="nav-dra4-tab" data-toggle="tab" href="#nav-dra4" role="tab" aria-controls="nav-dra4" aria-selected="false" data-key="일일/아침드라마">일일/아침</a>
+    </div>
+  </nav>
+  <div class="tab-content" id="nav-tabContent">
+    <div class="tab-pane fade show active" id="nav-dra1" role="tabpanel" aria-labelledby="nav-dra1-tab"></div>
+    <div class="tab-pane fade" id="nav-dra2" role="tabpanel" aria-labelledby="nav-dra2-tab"></div>
+    <div class="tab-pane fade" id="nav-dra3" role="tabpanel" aria-labelledby="nav-dra3-tab"></div>
+    <div class="tab-pane fade" id="nav-dra4" role="tabpanel" aria-labelledby="nav-dra4-tab"></div>
+  </div>`;
+  $('#nav-dra1-tab').tab('show');
+}
+
+function show_nav_ent() {
+  document.getElementById("nav").innerHTML = `
+  <nav>
+    <div class="nav nav-tabs" id="nav-tab" role="tablist">
+      <a class="nav-item nav-link" id="nav-ent1-tab" data-toggle="tab" href="#nav-ent1" role="tab" aria-controls="nav-ent1" aria-selected="false" data-key="월요일예능">월</a>
+      <a class="nav-item nav-link" id="nav-ent2-tab" data-toggle="tab" href="#nav-ent2" role="tab" aria-controls="nav-ent2" aria-selected="false" data-key="화요일예능">화</a>
+      <a class="nav-item nav-link" id="nav-ent3-tab" data-toggle="tab" href="#nav-ent3" role="tab" aria-controls="nav-ent3" aria-selected="false" data-key="수요일예능">수</a>
+      <a class="nav-item nav-link" id="nav-ent4-tab" data-toggle="tab" href="#nav-ent4" role="tab" aria-controls="nav-ent4" aria-selected="false" data-key="목요일예능">목</a>
+      <a class="nav-item nav-link" id="nav-ent5-tab" data-toggle="tab" href="#nav-ent5" role="tab" aria-controls="nav-ent5" aria-selected="false" data-key="금요일예능">금</a>
+      <a class="nav-item nav-link" id="nav-ent6-tab" data-toggle="tab" href="#nav-ent6" role="tab" aria-controls="nav-ent6" aria-selected="false" data-key="토요일예능">토</a>
+      <a class="nav-item nav-link" id="nav-ent7-tab" data-toggle="tab" href="#nav-ent7" role="tab" aria-controls="nav-ent7" aria-selected="false" data-key="일요일예능">일</a>
+    </div>
+  </nav>
+  <div class="tab-content" id="nav-tabContent">
+    <div class="tab-pane fade show active" id="nav-ent1" role="tabpanel" aria-labelledby="nav-ent1-tab"></div>
+    <div class="tab-pane fade" id="nav-ent2" role="tabpanel" aria-labelledby="nav-ent2-tab"></div>
+    <div class="tab-pane fade" id="nav-ent3" role="tabpanel" aria-labelledby="nav-ent3-tab"></div>
+    <div class="tab-pane fade" id="nav-ent4" role="tabpanel" aria-labelledby="nav-ent4-tab"></div>
+    <div class="tab-pane fade" id="nav-ent5" role="tabpanel" aria-labelledby="nav-ent5-tab"></div>
+    <div class="tab-pane fade" id="nav-ent6" role="tabpanel" aria-labelledby="nav-ent6-tab"></div>
+    <div class="tab-pane fade" id="nav-ent7" role="tabpanel" aria-labelledby="nav-ent7-tab"></div>
+  </div>`;
+  $('#nav-ent1-tab').tab('show');
+}
+
+$("#show-dra-btn").click(function(e) {
+  e.preventDefault();
+  show_nav_dra();
+});
+
+$("#show-ent-btn").click(function(e) {
+  e.preventDefault();
+  show_nav_ent();
+});
+
+$(document).on('shown.bs.tab', 'a[data-toggle="tab"]', function(e) {
+  var targetTabcontent = $(this).attr('aria-controls');
+  $.ajax({
+    url: '/' + package_name + '/ajax/' + module_name + '/ratings',
+    type: "POST",
+    cache: false,
+    data: {keyword:$(this).data('key')},
+    dataType: "json",
+    success: function (data) {
+      make_ratings_to(data, targetTabcontent);
+    }
+  })
+});
+
+function make_ratings_to(data, renderTo){
+	str = '';
+	str += '<div class="row">';
+	for (var i = 0; i < Object.keys(data).length; i++) {
+    str += '<div class="col-lg-2 col-md-3 col-sm-4 col-6">';
+    if (data[i].scheduled != '') {
+      str += '<div class="card mb-2 box-shadow bg-light text-muted">';
+    } else {
+      str += '<div class="card mb-2 box-shadow">';
+    }
+    str += `<img class="card-img-top" style="position:relative;" src="${data[i].image}" class="img-fluid img-thumbnail">`;
+    str += `<span class="badge badge-light mt-1" style="background-color: rgba(248, 249, 250, 0.7); position:absolute; top:0px; left:3px;">${data[i].ratings}${data[i].scheduled}</span>`;
+    str += '<div class="card-body p-3">';
+    str += `<a href="#" target="_blank" data-id="${data[i].title}" data-href="${data[i].href}" rel="noopener noreferrer"><strong class="card-title mb-0 text-truncate d-inline-block w-100" title="${data[i].title}">${data[i].title}</strong></a>`;
+    str += `<p class="card-text mb-1 text-truncate d-inline-block w-100">${data[i].provider}</p>`;
+    str += `<p class="card-text mb-0"><small class="text-muted text-truncate d-inline-block">${data[i].air_time}</small></p>`;
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+	}
+	str += '</div>';
+
+  document.getElementById(renderTo).innerHTML = str;
+}
+
+function option_process(mode, value) {
+  $.ajax({
+    url: '/bot_downloader_ktv/ajax/vod/option_process',
+    type: "POST", 
+    cache: false,
+    data: {mode:mode, value:value},
+    dataType: "json",
+    success: function (data) {
+      if (data == 'success') $.notify('<strong>추가하였습니다.</strong>', {type: 'success'});
+      else if (data == 'already') $.notify('<strong>이미 설정되어 있습니다.</strong>', {type: 'warning'});
+      else $.notify('<strong>실패</strong>', {type: 'warning'});
+    }
+  });
+}
+
+$(function(){
+    $.contextMenu({
+        selector: 'div.card-body > a',
+        trigger: 'left',
+        callback: function(key, options) {
+            if (key === "whitelist_program") {
+              option_process('whitelist_program', $(this).data('id'));
+            } else if (key === "go_to_daum") {
+              var windowReference = window.open();
+              windowReference.location = $(this).data('href');
+            }
+        },
+        items: {
+            "whitelist_program": {
+                name: "포함 프로그램 추가",
+                icon: "fas fa-plus",
+                disabled: bot_ktv_installed
+            },
+            "go_to_daum": {
+              name: "다음 TV검색",
+              icon: "fas fa-link"
+            }
+        }
+    });
+});
+
+
+</script>    
+{% endblock %}
