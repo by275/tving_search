@@ -10,9 +10,6 @@ from lxml import html
 
 # pylint: disable=import-error
 from framework.common.plugin import LogicModuleBase
-from framework import py_urllib
-from framework.common.daum import headers, session
-from system.logic_site import SystemLogicSite
 
 # pylint: disable=relative-beyond-top-level
 from .plugin import plugin
@@ -44,7 +41,7 @@ class LogicTVP(LogicModuleBase):
                 {"key": "새로 시작하는 프로그램", "val": "/highlights?key=AND_RE_VODHOME_NEW_PM_LIST"},
                 {"key": "TVING 4K", "val": "/highlights?key=SMTV_PROG_4K"},
                 {"key": "TVING Original & Only", "val": "/theme?sec=106084/292472"},
-                {"key": "공개 예정작", "val": "/theme?sec=106681/289468"},
+                {"key": "공개 예정작", "val": "/theme?sec=106084/292884"},
                 {"key": "화제의 종영작", "val": "/theme?sec=93381/292567"},
             ]
         ),
@@ -82,7 +79,7 @@ class LogicTVP(LogicModuleBase):
         arg["module_name"] = self.name
         arg["tving_installed"] = True
         arg["bot_ktv_installed"] = True
-        # pylint: disable=unused-import,import-outside-toplevel
+        # pylint: disable=unused-import
         try:
             import tving
         except ImportError:
@@ -488,8 +485,13 @@ class LogicTVP(LogicModuleBase):
     def get_daum_ratings(self, keyword):
         # drama_keywords = {'월화드라마', '수목드라마', '금요/주말드라마', '일일/아침드라마'}
         # ent_keywords = {'월요일예능', '화요일예능', '수요일예능', '목요일예능', '금요일예능', '토요일예능', '일요일예능'}
+        from framework.common.daum import headers, session
+        from system.logic_site import SystemLogicSite
+        from urllib.parse import quote, parse_qs
 
-        url = "https://search.daum.net/search?w=tot&q=%s" % py_urllib.quote(keyword)
+        url = "https://search.daum.net/search?w=tot&q=%s" % quote(keyword)
+        # url = "https://m.search.daum.net/search?w=tot&q=%s&DA=TVS&rtmaxcoll=TVS" % quote(keyword)
+        # 모바일 페이지를 파싱하면 출연 정보를 얻을 수 있지만 포스터가 lazy loading으로 들어옴.
         res = session.get(url, headers=headers, cookies=SystemLogicSite.get_daum_cookies())
         root = html.fromstring(res.content)
         list_program = root.xpath('//ol[@class="list_program item_cont"]/li')
@@ -497,20 +499,24 @@ class LogicTVP(LogicModuleBase):
         data = []
         for item in list_program:
             data_item = {}
+            try:
+                data_item["image"] = item.xpath("./a/img/@src")[0]
+            except Exception:
+                data_item["image"] = "http://www.okbible.com/data/skin/okbible_1/images/common/noimage.gif"
+
             data_item["title"] = item.xpath("./div/strong/a/text()")[0]
-            data_item["href"] = item.xpath("./div/strong/a")[0].get("href")
-            data_item["href"] = "https://search.daum.net/search?" + data_item["href"]
+            href_q = parse_qs(item.xpath("./div/strong/a")[0].get("href").lstrip("?"))
+            data_item["href"] = (
+                "https://search.daum.net/search?"
+                + f"w=tv&q={quote(href_q['q'][0])}&irk={href_q['irk'][0]}&irt=tv-program&DA=TVP"
+            )
+
             data_item["air_time"] = item.xpath("./div/span[1]/text()")[0]
             data_item["provider"] = item.xpath('./div/span[@class="txt_subinfo"][2]/text()')[0]
-            data_item["image"] = item.xpath("./a/img/@src")
+
             data_item["scheduled"] = item.xpath('./div/span[@class="txt_subinfo"]/span[@class="txt_subinfo"]/text()')
             data_item["ratings"] = item.xpath('./div/span[@class="txt_subinfo"][2]/span[@class="f_red"]/text()')
 
-            if len(data_item["image"]):
-                data_item["image"] = data_item["image"][0]
-            else:
-                data_item["image"] = "http://www.okbible.com/data/skin/okbible_1/images/common/noimage.gif"
-                # data_item['image'] = 'https://search1.daumcdn.net/search/statics/common/pi/thumb/noimage_151203.png'
             if data_item["scheduled"]:
                 data_item["scheduled"] = data_item["scheduled"][0]
             if data_item["ratings"]:
