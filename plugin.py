@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 # third-party
 from flask import Blueprint
@@ -19,12 +19,12 @@ class PlugIn:
         package_name,
         package_name,
         url_prefix=f"/{package_name}",
-        template_folder=os.path.join(os.path.dirname(__file__), "templates"),
+        template_folder=Path(__file__).parent.joinpath("templates"),
     )
 
     plugin_info = {
         "category_name": "vod",
-        "version": "0.3.2",
+        "version": "0.3.3",
         "name": "tving_search",
         "home": "https://github.com/by275/tving_search",
         "more": "https://github.com/by275/tving_search",
@@ -60,10 +60,10 @@ class PlugIn:
     logic = None
 
     def __init__(self):
-        db_file = os.path.join(path_data, "db", f"{self.package_name}.db")
+        db_file = Path(path_data).joinpath("db", f"{self.package_name}.db")
         app.config["SQLALCHEMY_BINDS"][self.package_name] = f"sqlite:///{db_file}"
 
-        Util.save_from_dict_to_json(self.plugin_info, os.path.join(os.path.dirname(__file__), "info.json"))
+        Util.save_from_dict_to_json(self.plugin_info, str(Path(__file__).parent.joinpath("info.json")))
 
 
 plugin = PlugIn()

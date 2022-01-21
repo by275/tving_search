@@ -225,7 +225,7 @@ class LogicTVP(LogicModuleBase):
 
     def tving_ep_parser_one(self, item):
         epfrq = item["episode"]["frequency"]
-        epstr = "E{:02d}".format(epfrq)
+        epstr = f"E{epfrq:02d}"
         datestr = str(item["episode"]["broadcast_date"])[2:]
 
         # air info
@@ -233,7 +233,7 @@ class LogicTVP(LogicModuleBase):
         air_info += [item["channel"]["name"]["ko"]]
         air_info += [item["program"]["category1_name"]["ko"]]
         air_datetime = []
-        broad_week = item["program"]["broad_week"]
+        broad_week = item["program"].get("broad_week", "")
         if broad_week:
             if len(broad_week) == 7:
                 air_datetime += ["매일"]
@@ -241,18 +241,18 @@ class LogicTVP(LogicModuleBase):
                 air_datetime += ["월~금"]
             else:
                 air_datetime += [broad_week]
-        if item["program"]["broad_hour"] and item["program"]["broad_minu"]:
-            air_datetime += ["{}:{}".format(item["program"]["broad_hour"], item["program"]["broad_minu"])]
+        broad_hour = item["program"].get("broad_hour", "")
+        broad_minu = item["program"].get("broad_minu", "")
+        if broad_hour and broad_minu:
+            air_datetime += [f"{broad_hour}:{broad_minu}"]
         if air_datetime:
             air_info += [" ".join(air_datetime)]
-        if item["program"]["broad_dt"]:
-            broad_dt = datetime.strptime(item["program"]["broad_dt"], "%Y%m%d").strftime("%Y.%m.%d")
-        else:
-            broad_dt = ""
-        if item["program"]["broad_end_dt"]:
-            broad_end_dt = datetime.strptime(item["program"]["broad_end_dt"], "%Y%m%d").strftime("%Y.%m.%d")
-        else:
-            broad_end_dt = ""
+        broad_dt = item["program"].get("broad_dt", "")
+        if broad_dt:
+            broad_dt = datetime.strptime(broad_dt, "%Y%m%d").strftime("%Y.%m.%d")
+        broad_end_dt = item["program"].get("broad_end_dt", "")
+        if broad_end_dt:
+            broad_end_dt = datetime.strptime(broad_end_dt, "%Y%m%d").strftime("%Y.%m.%d")
         if broad_dt:
             air_info += ["~".join([broad_dt, broad_end_dt])]
 
