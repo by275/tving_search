@@ -508,8 +508,8 @@ span.form-check label  { pointer-events: all; }
         }
         
         template_clone.querySelector("#movie-info").dataset["content"] = `<small>${data.movie.story.ko}</small><a href="http://www.tving.com/movie/player/${data.movie.code}?csite=tving_web" target="_blank" rel="noopener noreferrer" class="ml-2"><i class="fas fa-external-link-alt" aria-hidden="true"></i><a>`;
-        template_clone.querySelector("#movie-info").title = `${data.movie.name.en ? data.movie.name.en : 'N/A'}, ${data.movie.product_year}`;
-        template_clone.querySelector("#movie-info").innerHTML = `${data.movie.name.en ? data.movie.name.en : 'N/A'}, ${data.movie.product_year}`;
+        template_clone.querySelector("#movie-info").title = `${data.movie.name.en ? data.movie.name.en : data.movie.name.ko}`;
+        template_clone.querySelector("#movie-info").innerHTML = `${data.movie.name.en ? data.movie.name.en : data.movie.name.ko}`;
         
         if (data.movie.drm_yn === "Y") {
             $('<span class="mr-1 badge badge-pill badge-info">DRM</span>').insertAfter(template_clone.querySelector("#service-info"));

@@ -17,56 +17,6 @@ logger = plugin.logger
 package_name = plugin.package_name
 ModelSetting = plugin.ModelSetting
 
-product_country_map = {
-    "CACT1001": "한국",
-    "CACT4017": "프랑스",
-    "CACT4004": "독일",
-    "CACT4010": "영국",
-    "CACT4005": "러시아",
-    "CACT2002": "미국",
-    "CACT1008": "일본",
-    "CACT1012": "홍콩",
-    "CACT1009": "중국",
-    "CACT1011": "대만",
-    "CACT4025": "아일랜드",
-    "CACT1010": "태국",
-    "CACT9999": "슬로바키아",
-    "CACT4012": "이탈리아",
-    "CACT5001": "호주",
-    "CACT4009": "스페인",
-    "CACT2003": "캐나다",
-    "CACT4023": "노르웨이",
-    "CACT4018": "핀란드",
-    "CACT4006": "벨기에",
-    "CACT4013": "체코",
-    "CACT4003": "덴마크",
-    "CACT1006": "이란",
-    "CACT3002": "브라질",
-    "CACT1007": "인도",
-    "CACT4002": "네덜란드",
-    "CACT4015": "포르투칼",
-    "CACT5002": "뉴질랜드",
-    "CACT4016": "폴란드",
-    "CACT1004": "싱가포르",
-    "CACT1005": "아프가니스탄",
-    "CACT1013": "이스라엘",
-    "CACT1015": "아랍 에미리트",
-    "CACT2001": "멕시코",
-    "CACT3001": "베네수엘라",
-    "CACT3003": "아르헨티나",
-    "CACT3004": "푸에르토리코",
-    "CACT3005": "칠레",
-    "CACT4007": "스웨덴",
-    "CACT4008": "스위스",
-    "CACT4011": "오스트리아",
-    "CACT4014": "터키",
-    "CACT4019": "헝가리",
-    "CACT4020": "불가리아",
-    "CACT4027": "아이슬란드",
-    "CACT4028": "루마니아",
-    "CACT5003": "페루",
-}
-
 grade_code_map = {"CMMG0100": "전체", "CMMG0200": "12세", "CMMG0300": "15세", "CMMG0400": "19세"}
 
 
@@ -75,7 +25,6 @@ class LogicMOV(LogicModuleBase):
         "mov_excl_filter_enabled": "True",
         "mov_excl_filter_movie": "",
         "mov_excl_filter_category": "",
-        "mov_excl_filter_country": "",
         "mov_incl_filter": json.dumps(
             {
                 "type": "all",
@@ -230,10 +179,6 @@ class LogicMOV(LogicModuleBase):
 
     def tving_mv_parser_one(self, item):
         try:
-            product_country_txt = product_country_map[item["movie"]["product_country"]]
-        except Exception:
-            product_country_txt = item["movie"]["product_country"]
-        try:
             grade_txt = [grade_code_map[item["movie"]["grade_code"]]]
         except Exception:
             grade_txt = [item["movie"]["grade_code"]]
@@ -247,7 +192,6 @@ class LogicMOV(LogicModuleBase):
         # 릴리즈 정보
         summary = []
         summary += [item["movie"]["category1_name"]["ko"]]
-        summary += [product_country_txt]
 
         duration = divmod(int(item["movie"]["duration"]), 60)[0]
         if duration > 0:
@@ -283,7 +227,6 @@ class LogicMOV(LogicModuleBase):
             "director": ", ".join(item["movie"]["director"]),
             "casting": ", ".join(casting),
             "grade": grade_txt,
-            "country": product_country_txt,
             "datetime": service_open_date,
         }
 
@@ -296,11 +239,6 @@ class LogicMOV(LogicModuleBase):
                 for x in ModelSetting.get("mov_excl_filter_category").split(",")
                 if x.strip()
             ]
-            excl_country = [
-                x.strip().replace(" ", "").lower()
-                for x in ModelSetting.get("mov_excl_filter_country").split(",")
-                if x.strip()
-            ]
 
         # from items-retrieved-from-api to items-parsed-for-web
         ret = []
@@ -311,8 +249,6 @@ class LogicMOV(LogicModuleBase):
                     excl_filter_enabled
                     and parsed_item["movie"]["category1_name"]["ko"].strip().replace(" ", "").lower() in excl_genre
                 ):
-                    continue
-                if excl_filter_enabled and parsed_item["p"]["country"].strip().replace(" ", "").lower() in excl_country:
                     continue
                 if bool(parsed_item):
                     ret.append(parsed_item)
