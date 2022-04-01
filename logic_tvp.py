@@ -40,9 +40,9 @@ class LogicTVP(LogicModuleBase):
             [
                 {"key": "새로 시작하는 프로그램", "val": "/highlights?key=AND_RE_VODHOME_NEW_PM_LIST"},
                 {"key": "TVING 4K", "val": "/highlights?key=SMTV_PROG_4K"},
-                {"key": "TVING Original & Only", "val": "/theme?sec=106084/292472"},
-                {"key": "공개 예정작", "val": "/theme?sec=106084/292884"},
-                {"key": "화제의 종영작", "val": "/theme?sec=93381/292567"},
+                {"key": "TVING Original & Only", "val": "/theme?sec=106084"},
+                {"key": "공개 예정작", "val": "/theme?sec=106084"},
+                {"key": "화제의 종영작", "val": "/theme?sec=93381"},
             ]
         ),
     }
@@ -414,6 +414,12 @@ class LogicTVP(LogicModuleBase):
         return {"list": self.tving_ep_parser(ep_list) if ep_list else [], "nomore": no_more}
 
     def tving_theme(self, seq, uparams=None, page="1"):
+        if len(seq.split("/")) != 2:
+            section_seq = self.sess.get(
+                f"https://api.tving.com/v2/operator/theme/{seq}?&pocCode=POCD0400&pageNo=1&pageSize=10&themeType=T&status=Y&cacheTime=5&screenCode=CSSD0100&networkCode=CSND0900&osCode=CSOD0900&teleCode=CSCD0900&apiKey={apikey}"
+            ).json()["body"]["result"]["sections"][0]["section_seq"]
+            seq = f"{seq}/{section_seq}"
+
         api_url = f"https://api.tving.com/v2/operator/theme/{seq}"
         params = {
             "pocCode": "POCD0400",
@@ -489,7 +495,7 @@ class LogicTVP(LogicModuleBase):
         from system.logic_site import SystemLogicSite
         from urllib.parse import quote, parse_qs
 
-        url = "https://search.daum.net/search?w=tot&q=%s" % quote(keyword)
+        url = f"https://search.daum.net/search?w=tot&q={quote(keyword)}"
         # url = "https://m.search.daum.net/search?w=tot&q=%s&DA=TVS&rtmaxcoll=TVS" % quote(keyword)
         # 모바일 페이지를 파싱하면 출연 정보를 얻을 수 있지만 포스터가 lazy loading으로 들어옴.
         res = session.get(url, headers=headers, cookies=SystemLogicSite.get_daum_cookies())
