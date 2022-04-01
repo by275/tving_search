@@ -491,8 +491,10 @@ span.form-check label  { pointer-events: all; }
 
         template_clone.querySelector("#movie-title").innerHTML = data.movie.name.ko;
 
-        template_clone.querySelector("#datetime").title = data.p.datetime;
-        template_clone.querySelector("#datetime").innerHTML = datetimeFormat.format(datetime);
+        if (data.p.datetime) {
+            template_clone.querySelector("#datetime").title = data.p.datetime;
+            template_clone.querySelector("#datetime").innerHTML = datetimeFormat.format(datetime);
+        }
 
         let posterUrl = function() {
             for (let i of data.movie.image) {

@@ -182,12 +182,12 @@ class LogicMOV(LogicModuleBase):
             grade_txt = [grade_code_map[item["movie"]["grade_code"]]]
         except Exception:
             grade_txt = [item["movie"]["grade_code"]]
-        release_date = str(item["movie"]["release_date"])
+        release_date = str(item["movie"].get("release_date", "0"))
         try:
             service_open_date = datetime.strptime(str(item["service_open_date"]), "%Y%m%d%H%M%S").isoformat()
         except Exception:
             # not available for objects from curation api
-            service_open_date = datetime.strptime(str(item["movie"]["insert_date"]), "%Y%m%d%H%M%S").isoformat()
+            service_open_date = ""
 
         # 릴리즈 정보
         summary = []
@@ -200,7 +200,7 @@ class LogicMOV(LogicModuleBase):
             summary += [f"{release_date} 공개"]
 
         # 캐스팅 정보
-        casting = item["movie"]["actor"]
+        casting = item["movie"].get("actor", [])
         if len(casting) > 4:
             casting = casting[:5]
             casting[-1] += " 외"
@@ -224,7 +224,7 @@ class LogicMOV(LogicModuleBase):
         # add processed
         item["p"] = {
             "summary": " | ".join(summary),
-            "director": ", ".join(item["movie"]["director"]),
+            "director": ", ".join(item["movie"].get("director", [])),
             "casting": ", ".join(casting),
             "grade": grade_txt,
             "datetime": service_open_date,
@@ -343,6 +343,7 @@ class LogicMOV(LogicModuleBase):
     def tving_curation(self, code, uparams=None):
         api_url = f"https://api.tving.com/v2/media/movie/curation/{code}"
         params = {
+            "pageNo": "1",
             "screenCode": "CSSD0100",
             "networkCode": "CSND0900",
             "osCode": "CSOD0900",
