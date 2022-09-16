@@ -560,6 +560,9 @@ span.form-check label  { pointer-events: all; }
         if (data.program.tving_exclusive_yn === "Y") {
             $('<span class="ml-1 badge badge-pill badge-warning">TVING ONLY</span>').insertAfter(template_clone.querySelector("#program-info"));
         }
+        if (data.episode.ko_cc_yn === "Y") {
+            $('<span class="ml-1 badge badge-pill badge-info">해설자막</span>').insertAfter(template_clone.querySelector("#program-info"));
+        }
 
         template_clone.querySelector("#air-info").innerHTML = data.p.air_info;
 
