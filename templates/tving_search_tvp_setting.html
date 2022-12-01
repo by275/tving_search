@@ -3,12 +3,12 @@
 <div>
     <nav>
         {{ macros.m_tab_head_start() }} 
-            {{ macros.m_tab_head('일반', true) }} 
+            {{ macros.m_tab_head('basic', '기본', true) }} 
         {{ macros.m_tab_head_end() }}
     </nav>
     <div class="tab-content mb-3" id="nav-tabContent">
         <!-- 일반 -->
-        {{ macros.m_tab_content_start('일반', true) }}
+        {{ macros.m_tab_content_start('basic', true) }}
         <form id="setting" name="setting">
             {{ macros.setting_checkbox('tvp_excl_filter_enabled', '제외 필터', value=arg['tvp_excl_filter_enabled'], desc=['제외 필터는 에피소드만 적용 됩니다.']) }}
             <div id="tvp_excl_filter_enabled_div" class="collapse{{ ' show' if arg['tvp_excl_filter_enabled'] == 'True' else '' }}">
@@ -17,7 +17,7 @@
             {{ macros.setting_input_text('tvp_excl_filter_channels', '제외 채널', value=arg['tvp_excl_filter_channels'], desc=['제외할 채널명을 ,로 구분하여 입력']) }}
             {{ macros.setting_input_text('tvp_excl_filter_category', '제외 장르', value=arg['tvp_excl_filter_category'], desc=['제외할 장르를 ,로 구분하여 입력']) }}
             </div>
-            {{ macros.setting_button([['global_setting_save_btn', '저장']]) }}
+            {{ macros.setting_buttons([['globalSettingSaveBtn', '저장']]) }}
         </form>
         {{ macros.m_tab_content_end() }}
     </div>

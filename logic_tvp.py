@@ -1,26 +1,24 @@
 import re
 import json
-import traceback
 from copy import deepcopy
 from datetime import datetime, timedelta, date
 
 # third-party
-from flask import request, render_template, jsonify
-from lxml import html
+from flask import render_template, jsonify
 
 # pylint: disable=import-error
-from framework.common.plugin import LogicModuleBase
+from plugin import PluginModuleBase
 
 # pylint: disable=relative-beyond-top-level
-from .plugin import plugin
 from .logic_common import pathscrub, get_session, tving_global_search, apikey
+from .setup import P
 
-logger = plugin.logger
-package_name = plugin.package_name
-ModelSetting = plugin.ModelSetting
+logger = P.logger
+package_name = P.package_name
+ModelSetting = P.ModelSetting
 
 
-class LogicTVP(LogicModuleBase):
+class LogicTVP(PluginModuleBase):
     db_default = {
         "tvp_excl_filter_enabled": "True",
         "tvp_excl_filter_episode": "",
@@ -63,8 +61,8 @@ class LogicTVP(LogicModuleBase):
         "category": [],
     }
 
-    def __init__(self, P):
-        super().__init__(P, None)
+    def __init__(self, PM):
+        super().__init__(PM, None)
         self.name = "tvp"
         self.first_menu = "episodes"
         self.sess = get_session()
@@ -105,14 +103,13 @@ class LogicTVP(LogicModuleBase):
                 logger.info("sub: %s", sub)
                 return render_template(f"{package_name}_{self.name}_{sub}.html", arg=arg)
             return render_template(f"{package_name}_{self.name}.html", arg=arg, sub=sub)
-        except Exception as e:
-            logger.error("Exception: %s", str(e))
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Exception:")
             return render_template("sample.html", title=f"{package_name} - {self.name} - {sub}")
 
     def process_ajax(self, sub, req):
         try:
-            p = request.form.to_dict() if request.method == "POST" else request.args.to_dict()
+            p = req.form.to_dict() if req.method == "POST" else req.args.to_dict()
             page = p.get("page", "1")
             if sub == "episodes":
                 uparams = {
@@ -208,7 +205,7 @@ class LogicTVP(LogicModuleBase):
                 ModelSetting.set("tvp_collection_list", p.get("list"))
                 return jsonify({"success": True})
             if sub == "ratings":
-                keyword = request.form["keyword"]
+                keyword = req.form["keyword"]
                 return jsonify({"success": True, "data": self.get_daum_ratings(keyword)})
             if sub == "pop_whitelist_program":
                 from bot_downloader_ktv import P as ktv_plugin
@@ -219,8 +216,7 @@ class LogicTVP(LogicModuleBase):
                 return jsonify({"success": True})
             raise NotImplementedError(f"잘못된 URL: {sub}")
         except Exception as e:
-            logger.error("Exception: %s", str(e))
-            logger.error(traceback.format_exc())
+            logger.exception("Exception:")
             return jsonify({"success": False, "log": str(e)})
 
     def tving_ep_parser_one(self, item):
@@ -323,9 +319,8 @@ class LogicTVP(LogicModuleBase):
                 parsed_item = self.tving_ep_parser_one(item)
                 if bool(parsed_item):
                     ret.append(parsed_item)
-            except Exception as e:
-                logger.error("Exception: %s", str(e))
-                logger.error(traceback.format_exc())
+            except Exception:
+                logger.exception("Exception:")
         return ret
 
     def tving_search(self, keyword, page="1"):
@@ -491,15 +486,15 @@ class LogicTVP(LogicModuleBase):
     def get_daum_ratings(self, keyword):
         # drama_keywords = {'월화드라마', '수목드라마', '금요/주말드라마', '일일/아침드라마'}
         # ent_keywords = {'월요일예능', '화요일예능', '수요일예능', '목요일예능', '금요일예능', '토요일예능', '일요일예능'}
-        from framework.common.daum import headers, session
-        from system.logic_site import SystemLogicSite
+        from support_site import SiteDaum, SiteUtil
         from urllib.parse import quote, parse_qs
 
         url = f"https://search.daum.net/search?w=tot&q={quote(keyword)}"
         # url = "https://m.search.daum.net/search?w=tot&q=%s&DA=TVS&rtmaxcoll=TVS" % quote(keyword)
         # 모바일 페이지를 파싱하면 출연 정보를 얻을 수 있지만 포스터가 lazy loading으로 들어옴.
-        res = session.get(url, headers=headers, cookies=SystemLogicSite.get_daum_cookies())
-        root = html.fromstring(res.content)
+        proxy_url = SiteDaum._proxy_url  # pylint: disable=protected-access
+        cookies = SiteDaum._daum_cookie  # pylint: disable=protected-access
+        root = SiteUtil.get_tree(url, proxy_url=proxy_url, headers=SiteDaum.default_headers, cookies=cookies)
         list_program = root.xpath('//ol[@class="list_program item_cont"]/li')
 
         data = []

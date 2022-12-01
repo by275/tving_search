@@ -1,26 +1,25 @@
 import json
-import traceback
 from copy import deepcopy
 from datetime import datetime
 
 # third-party
-from flask import request, render_template, jsonify
+from flask import render_template, jsonify
 
-# app common
-from framework.common.plugin import LogicModuleBase  # pylint: disable=import-error
+# pylint: disable=import-error
+from plugin import PluginModuleBase
 
 # pylint: disable=relative-beyond-top-level
-from .plugin import plugin
 from .logic_common import get_session, tving_global_search, apikey
+from .setup import P
 
-logger = plugin.logger
-package_name = plugin.package_name
-ModelSetting = plugin.ModelSetting
+logger = P.logger
+package_name = P.package_name
+ModelSetting = P.ModelSetting
 
 grade_code_map = {"CMMG0100": "전체", "CMMG0200": "12세", "CMMG0300": "15세", "CMMG0400": "19세"}
 
 
-class LogicMOV(LogicModuleBase):
+class LogicMOV(PluginModuleBase):
     db_default = {
         "mov_excl_filter_enabled": "True",
         "mov_excl_filter_movie": "",
@@ -54,8 +53,8 @@ class LogicMOV(LogicModuleBase):
         "category": [],
     }
 
-    def __init__(self, P):
-        super().__init__(P, None)
+    def __init__(self, PM):
+        super().__init__(PM, None)
         self.name = "mov"
         self.first_menu = "movies"
         self.sess = get_session()
@@ -91,14 +90,13 @@ class LogicMOV(LogicModuleBase):
             if sub == "setting":
                 return render_template(f"{package_name}_{self.name}_{sub}.html", arg=arg)
             return render_template(f"{package_name}_{self.name}.html", arg=arg, sub=sub)
-        except Exception as e:
-            logger.error("Exception: %s", str(e))
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Exception:")
             return render_template("sample.html", title=f"{package_name} - {self.name} - {sub}")
 
     def process_ajax(self, sub, req):
         try:
-            p = request.form.to_dict() if request.method == "POST" else request.args.to_dict()
+            p = req.form.to_dict() if req.method == "POST" else req.args.to_dict()
             page = p.get("page", "1")
             if sub == "movies":
                 uparams = {
@@ -173,8 +171,7 @@ class LogicMOV(LogicModuleBase):
                 return jsonify({"success": True})
             raise NotImplementedError(f"잘못된 URL: {sub}")
         except Exception as e:
-            logger.error("Exception: %s", str(e))
-            logger.error(traceback.format_exc())
+            logger.exception("Exception:")
             return jsonify({"success": False, "log": str(e)})
 
     def tving_mv_parser_one(self, item):
@@ -252,9 +249,8 @@ class LogicMOV(LogicModuleBase):
                     continue
                 if bool(parsed_item):
                     ret.append(parsed_item)
-            except Exception as e:
-                logger.error("Exception: %s", str(e))
-                logger.error(traceback.format_exc())
+            except Exception:
+                logger.exception("Exception:")
         return ret
 
     def tving_search(self, keyword, page="1"):
