@@ -12,6 +12,9 @@
         "--line-length",
         "120"
     ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "none",
+    },
     "[python]": {
         "editor.formatOnSave": true
     },

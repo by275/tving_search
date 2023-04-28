@@ -484,45 +484,46 @@ class LogicTVP(PluginModuleBase):
         return cate_list
 
     def get_daum_ratings(self, keyword):
-        # drama_keywords = {'월화드라마', '수목드라마', '금요/주말드라마', '일일/아침드라마'}
-        # ent_keywords = {'월요일예능', '화요일예능', '수요일예능', '목요일예능', '금요일예능', '토요일예능', '일요일예능'}
         from support_site import SiteDaum, SiteUtil
         from urllib.parse import quote, parse_qs
 
         url = f"https://search.daum.net/search?w=tot&q={quote(keyword)}"
-        # url = "https://m.search.daum.net/search?w=tot&q=%s&DA=TVS&rtmaxcoll=TVS" % quote(keyword)
-        # 모바일 페이지를 파싱하면 출연 정보를 얻을 수 있지만 포스터가 lazy loading으로 들어옴.
         proxy_url = SiteDaum._proxy_url  # pylint: disable=protected-access
         cookies = SiteDaum._daum_cookie  # pylint: disable=protected-access
         root = SiteUtil.get_tree(url, proxy_url=proxy_url, headers=SiteDaum.default_headers, cookies=cookies)
-        list_program = root.xpath('//ol[@class="list_program item_cont"]/li')
 
         data = []
-        for item in list_program:
-            data_item = {}
+        for item in root.xpath('//*[@id="tcsColl"]//*[name()="c-card-view"]'):
+            keywords = item.xpath('./*[@slot="keyword"]')[0].text_content().split()
+            if not "#방송" in keywords or "#방영종료" in keywords:
+                continue
+            data_item = {"isScheduled": "#방영예정" in keywords}
             try:
-                data_item["image"] = item.xpath("./a/img/@src")[0]
+                src_q = parse_qs(item.xpath('./*[@slot="image"]/@data-original-src')[0].split("?")[1])
+                data_item["image"] = src_q["fname"][0]
             except Exception:
                 data_item["image"] = "http://www.okbible.com/data/skin/okbible_1/images/common/noimage.gif"
 
-            data_item["title"] = item.xpath("./div/strong/a/text()")[0]
-            href_q = parse_qs(item.xpath("./div/strong/a")[0].get("href").lstrip("?"))
+            data_item["title"] = item.xpath('./*[@slot="title"]/text()')[0].strip()
+            href_q = parse_qs(item.xpath('./*[@slot="title"]')[0].get("data-href").lstrip("?"))
             data_item["href"] = (
                 "https://search.daum.net/search?"
                 + f"w=tv&q={quote(href_q['q'][0])}&irk={href_q['irk'][0]}&irt=tv-program&DA=TVP"
             )
 
-            data_item["air_time"] = item.xpath("./div/span[1]/text()")[0]
-            data_item["provider"] = item.xpath('./div/span[@class="txt_subinfo"][2]/text()')[0]
-
-            data_item["scheduled"] = item.xpath('./div/span[@class="txt_subinfo"]/span[@class="txt_subinfo"]/text()')
-            data_item["ratings"] = item.xpath('./div/span[@class="txt_subinfo"][2]/span[@class="f_red"]/text()')
-
-            if data_item["scheduled"]:
-                data_item["scheduled"] = data_item["scheduled"][0]
-            if data_item["ratings"]:
-                data_item["ratings"] = data_item["ratings"][0]
+            for dt in item.xpath('.//dt'):
+                dt_text = dt.text_content().strip()
+                dd_text = dt.xpath('./following-sibling::dd')[0].text_content().strip()
+                if dt_text == "편성":
+                    data_item["air_time"] = dd_text
+                elif dt_text == "시청률":
+                    data_item["ratings"] = dd_text
+                elif dt_text == "채널":
+                    data_item["provider"] = dd_text
 
             data.append(data_item)
 
-        return data
+        data_with_ratings = [x for x in data if not x["isScheduled"] and x.get("ratings", "")]
+        return sorted(data_with_ratings, key=lambda x: float(x["ratings"].rstrip("%")), reverse=True) + \
+            [x for x in data if not x["isScheduled"] and not x.get("ratings", "")] + \
+            [x for x in data if x["isScheduled"]]

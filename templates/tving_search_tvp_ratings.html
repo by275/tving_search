@@ -4,6 +4,8 @@
 <div class="btn-group btn-group-sm flex-wrap mt-0 mb-2" role="group">
     <button type="button" id="show-dra-btn" class="btn btn-outline-success btn-sm">드라마</button>
     <button type="button" id="show-ent-btn" class="btn btn-outline-success btn-sm">예능</button>
+    <button type="button" id="show-sisa-btn" class="btn btn-outline-success btn-sm">시사교양</button>
+    <button type="button" id="show-etc-btn" class="btn btn-outline-success btn-sm">기타</button>
 </div>
 
 <div id="nav" class="mb-3"></div>
@@ -31,8 +33,9 @@ function show_nav_dra() {
     <div class="nav nav-tabs" id="nav-tab" role="tablist">
       <a class="nav-item nav-link" id="nav-dra1-tab" data-toggle="tab" href="#nav-dra1" role="tab" aria-controls="nav-dra1" aria-selected="false" data-key="월화드라마">월화</a>
       <a class="nav-item nav-link" id="nav-dra2-tab" data-toggle="tab" href="#nav-dra2" role="tab" aria-controls="nav-dra2" aria-selected="false" data-key="수목드라마">수목</a>
-      <a class="nav-item nav-link" id="nav-dra3-tab" data-toggle="tab" href="#nav-dra3" role="tab" aria-controls="nav-dra3" aria-selected="false" data-key="금요/주말드라마">금요/주말</a>
-      <a class="nav-item nav-link" id="nav-dra4-tab" data-toggle="tab" href="#nav-dra4" role="tab" aria-controls="nav-dra4" aria-selected="false" data-key="일일/아침드라마">일일/아침</a>
+      <a class="nav-item nav-link" id="nav-dra3-tab" data-toggle="tab" href="#nav-dra3" role="tab" aria-controls="nav-dra3" aria-selected="false" data-key="금토드라마">금토</a>
+      <a class="nav-item nav-link" id="nav-dra4-tab" data-toggle="tab" href="#nav-dra4" role="tab" aria-controls="nav-dra4" aria-selected="false" data-key="주말드라마">주말</a>
+      <a class="nav-item nav-link" id="nav-dra5-tab" data-toggle="tab" href="#nav-dra5" role="tab" aria-controls="nav-dra5" aria-selected="false" data-key="일일드라마">일일</a>
     </div>
   </nav>
   <div class="tab-content" id="nav-tabContent">
@@ -40,6 +43,7 @@ function show_nav_dra() {
     <div class="tab-pane fade" id="nav-dra2" role="tabpanel" aria-labelledby="nav-dra2-tab"></div>
     <div class="tab-pane fade" id="nav-dra3" role="tabpanel" aria-labelledby="nav-dra3-tab"></div>
     <div class="tab-pane fade" id="nav-dra4" role="tabpanel" aria-labelledby="nav-dra4-tab"></div>
+    <div class="tab-pane fade" id="nav-dra5" role="tabpanel" aria-labelledby="nav-dra5-tab"></div>
   </div>`;
   $('#nav-dra1-tab').tab('show');
 }
@@ -69,6 +73,54 @@ function show_nav_ent() {
   $('#nav-ent1-tab').tab('show');
 }
 
+function show_nav_sisa() {
+  document.getElementById("nav").innerHTML = `
+  <nav>
+    <div class="nav nav-tabs" id="nav-tab" role="tablist">
+      <a class="nav-item nav-link" id="nav-sisa1-tab" data-toggle="tab" href="#nav-sisa1" role="tab" aria-controls="nav-sisa1" aria-selected="false" data-key="월요일시사교양">월</a>
+      <a class="nav-item nav-link" id="nav-sisa2-tab" data-toggle="tab" href="#nav-sisa2" role="tab" aria-controls="nav-sisa2" aria-selected="false" data-key="화요일시사교양">화</a>
+      <a class="nav-item nav-link" id="nav-sisa3-tab" data-toggle="tab" href="#nav-sisa3" role="tab" aria-controls="nav-sisa3" aria-selected="false" data-key="수요일시사교양">수</a>
+      <a class="nav-item nav-link" id="nav-sisa4-tab" data-toggle="tab" href="#nav-sisa4" role="tab" aria-controls="nav-sisa4" aria-selected="false" data-key="목요일시사교양">목</a>
+      <a class="nav-item nav-link" id="nav-sisa5-tab" data-toggle="tab" href="#nav-sisa5" role="tab" aria-controls="nav-sisa5" aria-selected="false" data-key="금요일시사교양">금</a>
+      <a class="nav-item nav-link" id="nav-sisa6-tab" data-toggle="tab" href="#nav-sisa6" role="tab" aria-controls="nav-sisa6" aria-selected="false" data-key="토요일시사교양">토</a>
+      <a class="nav-item nav-link" id="nav-sisa7-tab" data-toggle="tab" href="#nav-sisa7" role="tab" aria-controls="nav-sisa7" aria-selected="false" data-key="일요일시사교양">일</a>
+    </div>
+  </nav>
+  <div class="tab-content" id="nav-tabContent">
+    <div class="tab-pane fade show active" id="nav-sisa1" role="tabpanel" aria-labelledby="nav-sisa1-tab"></div>
+    <div class="tab-pane fade" id="nav-sisa2" role="tabpanel" aria-labelledby="nav-sisa2-tab"></div>
+    <div class="tab-pane fade" id="nav-sisa3" role="tabpanel" aria-labelledby="nav-sisa3-tab"></div>
+    <div class="tab-pane fade" id="nav-sisa4" role="tabpanel" aria-labelledby="nav-sisa4-tab"></div>
+    <div class="tab-pane fade" id="nav-sisa5" role="tabpanel" aria-labelledby="nav-sisa5-tab"></div>
+    <div class="tab-pane fade" id="nav-sisa6" role="tabpanel" aria-labelledby="nav-sisa6-tab"></div>
+    <div class="tab-pane fade" id="nav-sisa7" role="tabpanel" aria-labelledby="nav-sisa7-tab"></div>
+  </div>`;
+  $('#nav-sisa1-tab').tab('show');
+}
+
+function show_nav_etc() {
+  document.getElementById("nav").innerHTML = `
+  <nav>
+    <div class="nav nav-tabs" id="nav-tab" role="tablist">
+      <a class="nav-item nav-link" id="nav-etc1-tab" data-toggle="tab" href="#nav-etc1" role="tab" aria-controls="nav-etc1" aria-selected="false" data-key="뉴스">뉴스</a>
+      <a class="nav-item nav-link" id="nav-etc2-tab" data-toggle="tab" href="#nav-etc2" role="tab" aria-controls="nav-etc2" aria-selected="false" data-key="미국드라마">미드</a>
+      <a class="nav-item nav-link" id="nav-etc3-tab" data-toggle="tab" href="#nav-etc3" role="tab" aria-controls="nav-etc3" aria-selected="false" data-key="일본드라마">일드</a>
+      <a class="nav-item nav-link" id="nav-etc4-tab" data-toggle="tab" href="#nav-etc4" role="tab" aria-controls="nav-etc4" aria-selected="false" data-key="중국드라마">중드</a>
+      <a class="nav-item nav-link" id="nav-etc5-tab" data-toggle="tab" href="#nav-etc5" role="tab" aria-controls="nav-etc5" aria-selected="false" data-key="영국드라마">영드</a>
+      <a class="nav-item nav-link" id="nav-etc6-tab" data-toggle="tab" href="#nav-etc6" role="tab" aria-controls="nav-etc6" aria-selected="false" data-key="대만드라마">대드</a>
+    </div>
+  </nav>
+  <div class="tab-content" id="nav-tabContent">
+    <div class="tab-pane fade show active" id="nav-etc1" role="tabpanel" aria-labelledby="nav-etc1-tab"></div>
+    <div class="tab-pane fade" id="nav-etc2" role="tabpanel" aria-labelledby="nav-etc2-tab"></div>
+    <div class="tab-pane fade" id="nav-etc3" role="tabpanel" aria-labelledby="nav-etc3-tab"></div>
+    <div class="tab-pane fade" id="nav-etc4" role="tabpanel" aria-labelledby="nav-etc4-tab"></div>
+    <div class="tab-pane fade" id="nav-etc5" role="tabpanel" aria-labelledby="nav-etc5-tab"></div>
+    <div class="tab-pane fade" id="nav-etc6" role="tabpanel" aria-labelledby="nav-etc6-tab"></div>
+  </div>`;
+  $('#nav-etc1-tab').tab('show');
+}
+
 $("#show-dra-btn").click(function(e) {
   e.preventDefault();
   show_nav_dra();
@@ -77,6 +129,16 @@ $("#show-dra-btn").click(function(e) {
 $("#show-ent-btn").click(function(e) {
   e.preventDefault();
   show_nav_ent();
+});
+
+$("#show-sisa-btn").click(function(e) {
+  e.preventDefault();
+  show_nav_sisa();
+});
+
+$("#show-etc-btn").click(function(e) {
+  e.preventDefault();
+  show_nav_etc();
 });
 
 $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', function(e) {
@@ -104,16 +166,16 @@ function make_ratings_to(data, renderTo){
 	str += '<div class="row">';
 	for (var i = 0; i < Object.keys(data).length; i++) {
     str += '<div class="col-lg-2 col-md-3 col-sm-4 col-6">';
-    if (data[i].scheduled != '') {
+    if (data[i].isScheduled) {
       str += '<div class="card mb-2 box-shadow bg-light text-muted">';
     } else {
       str += '<div class="card mb-2 box-shadow">';
     }
     str += `<img class="card-img-top" style="position:relative;" src="${data[i].image}" alt="${data[i].title}" class="img-fluid img-thumbnail">`;
-    str += `<span class="badge badge-light mt-1" style="background-color: rgba(248, 249, 250, 0.7); position:absolute; top:0px; left:3px;">${data[i].ratings}${data[i].scheduled}</span>`;
+    str += `<span class="badge badge-light mt-1" style="background-color: rgba(248, 249, 250, 0.7); position:absolute; top:0px; left:3px;">${data[i].provider ? data[i].provider : data[i].ratings}</span>`;
     str += '<div class="card-body p-3">';
     str += `<a href="#" target="_blank" data-id="${data[i].title}" data-href="${data[i].href}" rel="noopener noreferrer"><strong class="card-title mb-0 text-truncate d-inline-block w-100" title="${data[i].title}">${data[i].title}</strong></a>`;
-    str += `<p class="card-text mb-0 text-truncate d-inline-block w-100">${data[i].provider}<br><small class="text-muted text-truncate d-inline-block">${data[i].air_time}</small></p>`;
+    str += `<p class="card-text m-0 text-truncate d-inline-block w-100"><small class="text-muted text-truncate d-inline-block">${data[i].air_time}</small></p>`;
     str += '</div>';
     str += '</div>';
     str += '</div>';
