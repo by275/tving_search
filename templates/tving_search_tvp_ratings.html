@@ -4,7 +4,6 @@
 <div class="btn-group btn-group-sm flex-wrap mt-0 mb-2" role="group">
     <button type="button" id="show-dra-btn" class="btn btn-outline-success btn-sm">드라마</button>
     <button type="button" id="show-ent-btn" class="btn btn-outline-success btn-sm">예능</button>
-    <button type="button" id="show-sisa-btn" class="btn btn-outline-success btn-sm">시사교양</button>
     <button type="button" id="show-etc-btn" class="btn btn-outline-success btn-sm">기타</button>
 </div>
 
@@ -73,36 +72,10 @@ function show_nav_ent() {
   $('#nav-ent1-tab').tab('show');
 }
 
-function show_nav_sisa() {
-  document.getElementById("nav").innerHTML = `
-  <nav>
-    <div class="nav nav-tabs" id="nav-tab" role="tablist">
-      <a class="nav-item nav-link" id="nav-sisa1-tab" data-toggle="tab" href="#nav-sisa1" role="tab" aria-controls="nav-sisa1" aria-selected="false" data-key="월요일시사교양">월</a>
-      <a class="nav-item nav-link" id="nav-sisa2-tab" data-toggle="tab" href="#nav-sisa2" role="tab" aria-controls="nav-sisa2" aria-selected="false" data-key="화요일시사교양">화</a>
-      <a class="nav-item nav-link" id="nav-sisa3-tab" data-toggle="tab" href="#nav-sisa3" role="tab" aria-controls="nav-sisa3" aria-selected="false" data-key="수요일시사교양">수</a>
-      <a class="nav-item nav-link" id="nav-sisa4-tab" data-toggle="tab" href="#nav-sisa4" role="tab" aria-controls="nav-sisa4" aria-selected="false" data-key="목요일시사교양">목</a>
-      <a class="nav-item nav-link" id="nav-sisa5-tab" data-toggle="tab" href="#nav-sisa5" role="tab" aria-controls="nav-sisa5" aria-selected="false" data-key="금요일시사교양">금</a>
-      <a class="nav-item nav-link" id="nav-sisa6-tab" data-toggle="tab" href="#nav-sisa6" role="tab" aria-controls="nav-sisa6" aria-selected="false" data-key="토요일시사교양">토</a>
-      <a class="nav-item nav-link" id="nav-sisa7-tab" data-toggle="tab" href="#nav-sisa7" role="tab" aria-controls="nav-sisa7" aria-selected="false" data-key="일요일시사교양">일</a>
-    </div>
-  </nav>
-  <div class="tab-content" id="nav-tabContent">
-    <div class="tab-pane fade show active" id="nav-sisa1" role="tabpanel" aria-labelledby="nav-sisa1-tab"></div>
-    <div class="tab-pane fade" id="nav-sisa2" role="tabpanel" aria-labelledby="nav-sisa2-tab"></div>
-    <div class="tab-pane fade" id="nav-sisa3" role="tabpanel" aria-labelledby="nav-sisa3-tab"></div>
-    <div class="tab-pane fade" id="nav-sisa4" role="tabpanel" aria-labelledby="nav-sisa4-tab"></div>
-    <div class="tab-pane fade" id="nav-sisa5" role="tabpanel" aria-labelledby="nav-sisa5-tab"></div>
-    <div class="tab-pane fade" id="nav-sisa6" role="tabpanel" aria-labelledby="nav-sisa6-tab"></div>
-    <div class="tab-pane fade" id="nav-sisa7" role="tabpanel" aria-labelledby="nav-sisa7-tab"></div>
-  </div>`;
-  $('#nav-sisa1-tab').tab('show');
-}
-
 function show_nav_etc() {
   document.getElementById("nav").innerHTML = `
   <nav>
     <div class="nav nav-tabs" id="nav-tab" role="tablist">
-      <a class="nav-item nav-link" id="nav-etc1-tab" data-toggle="tab" href="#nav-etc1" role="tab" aria-controls="nav-etc1" aria-selected="false" data-key="뉴스">뉴스</a>
       <a class="nav-item nav-link" id="nav-etc2-tab" data-toggle="tab" href="#nav-etc2" role="tab" aria-controls="nav-etc2" aria-selected="false" data-key="미국드라마">미드</a>
       <a class="nav-item nav-link" id="nav-etc3-tab" data-toggle="tab" href="#nav-etc3" role="tab" aria-controls="nav-etc3" aria-selected="false" data-key="일본드라마">일드</a>
       <a class="nav-item nav-link" id="nav-etc4-tab" data-toggle="tab" href="#nav-etc4" role="tab" aria-controls="nav-etc4" aria-selected="false" data-key="중국드라마">중드</a>
@@ -111,14 +84,13 @@ function show_nav_etc() {
     </div>
   </nav>
   <div class="tab-content" id="nav-tabContent">
-    <div class="tab-pane fade show active" id="nav-etc1" role="tabpanel" aria-labelledby="nav-etc1-tab"></div>
-    <div class="tab-pane fade" id="nav-etc2" role="tabpanel" aria-labelledby="nav-etc2-tab"></div>
+    <div class="tab-pane fade show active" id="nav-etc2" role="tabpanel" aria-labelledby="nav-etc2-tab"></div>
     <div class="tab-pane fade" id="nav-etc3" role="tabpanel" aria-labelledby="nav-etc3-tab"></div>
     <div class="tab-pane fade" id="nav-etc4" role="tabpanel" aria-labelledby="nav-etc4-tab"></div>
     <div class="tab-pane fade" id="nav-etc5" role="tabpanel" aria-labelledby="nav-etc5-tab"></div>
     <div class="tab-pane fade" id="nav-etc6" role="tabpanel" aria-labelledby="nav-etc6-tab"></div>
   </div>`;
-  $('#nav-etc1-tab').tab('show');
+  $('#nav-etc2-tab').tab('show');
 }
 
 $("#show-dra-btn").click(function(e) {
@@ -129,11 +101,6 @@ $("#show-dra-btn").click(function(e) {
 $("#show-ent-btn").click(function(e) {
   e.preventDefault();
   show_nav_ent();
-});
-
-$("#show-sisa-btn").click(function(e) {
-  e.preventDefault();
-  show_nav_sisa();
 });
 
 $("#show-etc-btn").click(function(e) {
