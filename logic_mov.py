@@ -3,13 +3,13 @@ from copy import deepcopy
 from datetime import datetime
 
 # third-party
-from flask import render_template, jsonify
+from flask import jsonify, render_template
 
 # pylint: disable=import-error
 from plugin import PluginModuleBase
 
 # pylint: disable=relative-beyond-top-level
-from .logic_common import get_session, tving_global_search, apikey
+from .logic_common import apikey, get_session, tving_global_search
 from .setup import P
 
 logger = P.logger

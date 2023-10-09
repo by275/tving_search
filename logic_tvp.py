@@ -1,16 +1,17 @@
-import re
 import json
+import re
 from copy import deepcopy
-from datetime import datetime, timedelta, date
+from datetime import date, datetime, timedelta
+from urllib.parse import parse_qs, quote
 
 # third-party
-from flask import render_template, jsonify
+from flask import jsonify, render_template
 
 # pylint: disable=import-error
 from plugin import PluginModuleBase
 
 # pylint: disable=relative-beyond-top-level
-from .logic_common import pathscrub, get_session, tving_global_search, apikey
+from .logic_common import apikey, get_session, pathscrub, tving_global_search
 from .setup import P
 
 logger = P.logger
@@ -443,13 +444,13 @@ class LogicTVP(PluginModuleBase):
     def tving_channels(self):
         api_url = "https://api.tving.com/v2/operator/highlights"
         params = {
+            "positionKey": "AND_VOD_CHNLLIST",
             "screenCode": "CSSD0100",
             "networkCode": "CSND0900",
             "osCode": "CSOD0900",
             "teleCode": "CSCD0900",
-            "positionKey": "AND_VOD_CHNLLIST",
-            "cacheTime": "5",
             "apiKey": apikey,
+            "cacheTime": "5",
         }
 
         res = self.sess.get(api_url, params=params)
@@ -462,6 +463,9 @@ class LogicTVP(PluginModuleBase):
         return ch_list
 
     def tving_category(self):
+        """대분류
+        https://api.tving.com/v2/media/programcatsdtl에서 상세카테고리(소분류)를 얻을 수 있다.
+        """
         api_url = "https://api.tving.com/v2/media/programcats"
         params = {
             "pageNo": "1",
@@ -485,7 +489,6 @@ class LogicTVP(PluginModuleBase):
 
     def get_daum_ratings(self, keyword):
         from support_site import SiteDaum, SiteUtil
-        from urllib.parse import quote, parse_qs
 
         url = f"https://search.daum.net/search?w=tot&q={quote(keyword)}"
         proxy_url = SiteDaum._proxy_url  # pylint: disable=protected-access
@@ -511,9 +514,9 @@ class LogicTVP(PluginModuleBase):
                 + f"w=tv&q={quote(href_q['q'][0])}&irk={href_q['irk'][0]}&irt=tv-program&DA=TVP"
             )
 
-            for dt in item.xpath('.//dt'):
+            for dt in item.xpath(".//dt"):
                 dt_text = dt.text_content().strip()
-                dd_text = dt.xpath('./following-sibling::dd')[0].text_content().strip()
+                dd_text = dt.xpath("./following-sibling::dd")[0].text_content().strip()
                 if dt_text == "편성":
                     data_item["air_time"] = dd_text
                 elif dt_text == "시청률":
@@ -524,6 +527,8 @@ class LogicTVP(PluginModuleBase):
             data.append(data_item)
 
         data_with_ratings = [x for x in data if not x["isScheduled"] and x.get("ratings", "")]
-        return sorted(data_with_ratings, key=lambda x: float(x["ratings"].rstrip("%")), reverse=True) + \
-            [x for x in data if not x["isScheduled"] and not x.get("ratings", "")] + \
-            [x for x in data if x["isScheduled"]]
+        return (
+            sorted(data_with_ratings, key=lambda x: float(x["ratings"].rstrip("%")), reverse=True)
+            + [x for x in data if not x["isScheduled"] and not x.get("ratings", "")]
+            + [x for x in data if x["isScheduled"]]
+        )

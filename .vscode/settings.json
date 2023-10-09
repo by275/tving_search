@@ -1,14 +1,10 @@
 {
-    "editor.formatOnSave": true,
-    "editor.minimap.enabled": false,
-    "python.linting.enabled": true,
-    "python.linting.pylintEnabled": true,
-    "python.linting.pylintArgs": [
+    "python.languageServer": "Jedi",
+    "pylint.args": [
         "--disable",
         "C0103,C0114,C0115,C0116,C0301,C0413,C0415,W0703",
     ],
-    "python.formatting.provider": "black",
-    "python.formatting.blackArgs": [
+    "black-formatter.args": [
         "--line-length",
         "120"
     ],
@@ -16,6 +12,11 @@
         "reportMissingImports": "none",
     },
     "[python]": {
-        "editor.formatOnSave": true
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        },
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.minimap.enabled": false
     },
 }

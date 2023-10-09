@@ -45,7 +45,7 @@ from plugin import create_plugin_instance
 
 P = create_plugin_instance(setting)
 
-from .logic_tvp import LogicTVP
 from .logic_mov import LogicMOV
+from .logic_tvp import LogicTVP
 
 P.set_module_list([LogicTVP, LogicMOV])

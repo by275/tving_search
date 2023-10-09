@@ -1,6 +1,6 @@
+import ntpath
 import re
 import sys
-import ntpath
 from typing import Optional
 
 # third-party
@@ -59,7 +59,7 @@ def pathscrub(dirty_path: str, os: Optional[str] = None, filename: bool = False)
     path = path.strip()
     # If we stripped everything from a filename, complain
     if filename and dirty_path and not path:
-        raise ValueError("Nothing was left after stripping invalid characters from path `%s`!" % dirty_path)
+        raise ValueError(f"Nothing was left after stripping invalid characters from path `{dirty_path}`!")
     return drive + path
 
 
@@ -71,24 +71,27 @@ def get_session():
 
 def tving_global_search(keyword, category, page="1", session=None):
     sess = get_session() if session is None else session
-    api_url = "https://search.tving.com/search/getSearch.jsp"
+    api_url = "https://search-api.tving.com/search/getSearch.jsp"
     params = {
         "kwd": keyword,
-        "notFoundText": keyword,
-        "siteName": "TVING_WEB",
         "category": "TOTAL",
         # 'category': 'PROGRAM',
         "pageNum": page,
-        "pageSize": "15",
+        "screenCode": "CSSD0100",
+        "networkCode": "CSND0900",
+        "osCode": "CSOD0900",
+        "teleCode": "CSCD0900",
+        "apiKey": apikey,
+        "notFoundText": keyword,
+        # "userId": "",
+        "siteName": "TVING_WEB",
+        "pageSize": "20",
         "indexType": "both",
         "methodType": "allwordthruindex",
         "payFree": "ALL",
         "runTime": "ALL",
         "grade": "ALL",
         "genre": "ALL",
-        "screen": "CSSD0100",
-        "os": "CSOD0900",
-        "network": "CSND0900",
         "sort1": "NO",
         # "sort1": "score",
         # 'sort1': 'ins_dt',
@@ -101,13 +104,13 @@ def tving_global_search(keyword, category, page="1", session=None):
         "fixedType": "Y",
         "spcMethod": "someword",
         "spcSize": "0",
-        "schReqCnt": "15",
-        "vodBCReqCnt": "15",
-        "programReqCnt": "18",
-        "vodMVReqCnt": "15",
-        "smrclipReqCnt": "15",
-        "pickClipReqCnt": "15",
-        "aloneReqCnt": "15",
+        "schReqCnt": "20",
+        "vodBCReqCnt": "20",
+        "programReqCnt": "20",
+        "vodMVReqCnt": "20",
+        "aloneReqCnt": "20",
+        "smrclipReqCnt": "0",
+        "pickClipReqCnt": "0",
         "cSocialClipCnt": "0",
         "boardReqCnt": "0",
         "talkReqCnt": "0",
