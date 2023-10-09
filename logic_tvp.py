@@ -10,7 +10,7 @@ from flask import jsonify, render_template
 from plugin import PluginModuleBase
 
 # pylint: disable=relative-beyond-top-level
-from .logic_common import apikey, get_session, pathscrub, tving_global_search
+from .logic_common import apikey, get_session, pathscrub, tving_originals, tving_search
 from .setup import P
 
 logger = P.logger
@@ -37,11 +37,9 @@ class LogicTVP(PluginModuleBase):
         ),
         "tvp_collection_list": json.dumps(
             [
-                {"key": "새로 시작하는 프로그램", "val": "/highlights?key=AND_RE_VODHOME_NEW_PM_LIST"},
-                {"key": "TVING 4K", "val": "/highlights?key=SMTV_PROG_4K"},
-                {"key": "TVING Original & Only", "val": "/theme?sec=106084"},
-                {"key": "공개 예정작", "val": "/theme?sec=106084"},
-                {"key": "화제의 종영작", "val": "/theme?sec=93381"},
+                {"key": "새로 시작한 프로그램", "val": "/highlights?key=AND_RE_VODHOME_NEW_PM_LIST"},
+                {"key": "티빙 4K", "val": "/highlights?key=SMTV_PROG_4K"},
+                {"key": "티빙 오리지널", "val": "/originals?order=new"},
             ]
         ),
     }
@@ -161,18 +159,17 @@ class LogicTVP(PluginModuleBase):
                 kwd = p.get("keyword", "")
                 if not kwd:
                     return jsonify({"success": True, "data": {"list": [], "nomore": True}})
-                m = re.compile("^(P[0-9]+)$").search(kwd)
+                m = re.compile(r"^(P[0-9]+)$").search(kwd)
                 if m:
                     uparams = {"programCode": kwd, "lastFrequency": "frequencyDesc"}
                     return jsonify({"success": True, "data": self.tving_episodes(uparams=uparams, page=page)})
-                return jsonify({"success": True, "data": self.tving_search(kwd, page=page)})
+                return jsonify({"success": True, "data": self.__search(kwd, page=page)})
+            if sub == "originals":
+                order = p.get("order", "new")
+                return jsonify({"success": True, "data": self.__originals(order, page=page)})
             if sub == "highlights":
-                return jsonify(
-                    {
-                        "success": True,
-                        "data": self.tving_highlights(uparams={"positionKey": p.get("key", "")}, page=page),
-                    }
-                )
+                uparams = {"positionKey": p.get("key", "")}
+                return jsonify({"success": True, "data": self.tving_highlights(uparams=uparams, page=page)})
             if sub == "theme":
                 return jsonify({"success": True, "data": self.tving_theme(p.get("sec", ""), page=page)})
             if sub == "save_filter":
@@ -310,8 +307,8 @@ class LogicTVP(PluginModuleBase):
                 logger.exception("Exception:")
         return ret
 
-    def tving_search(self, keyword, page="1"):
-        data = tving_global_search(keyword, self.name, page=page, session=self.sess)
+    def __search(self, keyword, page="1"):
+        data = tving_search(keyword, self.name, page=page, session=self.sess)
         codes = [x["mast_cd"] for x in data["list"]]
 
         ep_list, no_more = [], data["nomore"]
@@ -324,6 +321,19 @@ class LogicTVP(PluginModuleBase):
                 ret["list"]
             ), f"Incomplete Search: requested {len(codes)} but received {len(ret['list'])}"
 
+            # reorder to match with a searched result
+            for code in codes:
+                ep_list += [x for x in ret["list"] if x["program"]["code"] == code]
+        return {"list": ep_list, "nomore": no_more}
+
+    def __originals(self, order, page="1"):
+        data = tving_originals(self.name, order, page=page, session=self.sess)
+        codes = [x["vod_code"] for x in data["list"]]
+
+        ep_list, no_more = [], data["nomore"]
+        if codes:
+            uparams = {"programCode": ",".join(codes), "lastFrequency": "Y", "notEpisodeCode": "", "notProgramCode": ""}
+            ret = self.tving_episodes(uparams=uparams, page="1")
             # reorder to match with a searched result
             for code in codes:
                 ep_list += [x for x in ret["list"] if x["program"]["code"] == code]

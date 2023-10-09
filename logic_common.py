@@ -69,7 +69,7 @@ def get_session():
     return sess
 
 
-def tving_global_search(keyword, category, page="1", session=None):
+def tving_search(keyword, category, page="1", session=None):
     sess = get_session() if session is None else session
     api_url = "https://search-api.tving.com/search/getSearch.jsp"
     params = {
@@ -140,3 +140,39 @@ def tving_global_search(keyword, category, page="1", session=None):
     pagesize = int(pagesize)
     currsize = len(data["dataList"])
     return {"list": data["dataList"], "nomore": currsize == 0 or total == pagesize * (page - 1) + currsize}
+
+
+def tving_originals(category, order="new", page="1", session=None):
+    sess = get_session() if session is None else session
+    api_url = "https://api.tving.com/v2/media/originals"
+    params = {
+        "pocCode": "POCD0400",
+        "pageNo": page,
+        "pageSize": "20",
+        "status": "Y",
+        "cacheTime": "5",
+        "adult": "all",
+        "order": order,  # viewDay: 인기순, new: 최신순
+        "originalYn": "Y",
+        "screenCode": "CSSD0100",
+        "networkCode": "CSND0900",
+        "osCode": "CSOD0900",
+        "teleCode": "CSCD0900",
+        "apiKey": apikey,
+    }
+
+    res = sess.get(api_url, params=params)
+    res.raise_for_status()
+    data = res.json()
+
+    dt_list, no_more = [], True
+    if data["header"]["status"] == 200:
+        dt_list = data["body"]["contents"]
+        no_more = data["body"]["has_more"].lower() != "y"
+    if category.lower() == "tvp":
+        dt_list = [x for x in dt_list if x["vod_code"].startswith("P")]
+    elif category.lower() == "mov":
+        dt_list = [x for x in dt_list if x["vod_code"].startswith("M")]
+    else:
+        raise NotImplementedError(f"Unknown category: {category}")
+    return {"list": dt_list, "nomore": no_more}

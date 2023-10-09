@@ -1,4 +1,5 @@
 import json
+import re
 from copy import deepcopy
 from datetime import datetime
 
@@ -9,7 +10,7 @@ from flask import jsonify, render_template
 from plugin import PluginModuleBase
 
 # pylint: disable=relative-beyond-top-level
-from .logic_common import apikey, get_session, tving_global_search
+from .logic_common import apikey, get_session, tving_originals, tving_search
 from .setup import P
 
 logger = P.logger
@@ -34,8 +35,9 @@ class LogicMOV(PluginModuleBase):
         ),
         "mov_collection_list": json.dumps(
             [
-                {"key": "TVING 4K", "val": "/highlights?key=SMTV_MV_4K"},
-                {"key": "TVING Original & Only", "val": "/curation?code=193"},
+                {"key": "티빙 4K", "val": "/highlights?key=SMTV_MV_4K"},
+                {"key": "티빙 오리지널&독점", "val": "/highlights?key=AND_RE_MOVIEHOME_HOT_MV_LIST"},
+                {"key": "티빙 오리지널", "val": "/originals?order=new"},
             ]
         ),
     }
@@ -133,14 +135,17 @@ class LogicMOV(PluginModuleBase):
                 kwd = p.get("keyword", "")
                 if not kwd:
                     return jsonify({"success": True, "data": {"list": [], "nomore": True}})
-                return jsonify({"success": True, "data": self.tving_search(kwd, page=page)})
+                m = re.compile(r"^(M[0-9]+)$").search(kwd)
+                if m:
+                    uparams = {"movieCode": kwd, "notMovieCode": ""}
+                    return jsonify({"success": True, "data": self.tving_movies(uparams=uparams, page=page)})
+                return jsonify({"success": True, "data": self.__search(kwd, page=page)})
+            if sub == "originals":
+                order = p.get("order", "new")
+                return jsonify({"success": True, "data": self.__originals(order, page=page)})
             if sub == "highlights":
-                return jsonify(
-                    {
-                        "success": True,
-                        "data": self.tving_highlights(uparams={"positionKey": p.get("key", "")}, page=page),
-                    }
-                )
+                uparams = {"positionKey": p.get("key", "")}
+                return jsonify({"success": True, "data": self.tving_highlights(uparams=uparams, page=page)})
             if sub == "curation":
                 return jsonify({"success": True, "data": self.tving_curation(p.get("code", ""))})
             if sub == "save_filter":
@@ -253,8 +258,8 @@ class LogicMOV(PluginModuleBase):
                 logger.exception("Exception:")
         return ret
 
-    def tving_search(self, keyword, page="1"):
-        data = tving_global_search(keyword, self.name, page=page, session=self.sess)
+    def __search(self, keyword, page="1"):
+        data = tving_search(keyword, self.name, page=page, session=self.sess)
         codes = [x["mast_cd"] for x in data["list"]]
 
         mv_list, no_more = [], data["nomore"]
@@ -267,6 +272,19 @@ class LogicMOV(PluginModuleBase):
                 ret["list"]
             ), f"Incomplete Search: requested {len(codes)} but received {len(ret['list'])}"
 
+            # reorder to match with a searched result
+            for code in codes:
+                mv_list += [x for x in ret["list"] if x["movie"]["code"] == code]
+        return {"list": mv_list, "nomore": no_more}
+
+    def __originals(self, order, page="1"):
+        data = tving_originals(self.name, order, page=page, session=self.sess)
+        codes = [x["vod_code"] for x in data["list"]]
+
+        mv_list, no_more = [], data["nomore"]
+        if codes:
+            uparams = {"movieCode": ",".join(codes), "notMovieCode": ""}
+            ret = self.tving_movies(uparams=uparams, page="1")
             # reorder to match with a searched result
             for code in codes:
                 mv_list += [x for x in ret["list"] if x["movie"]["code"] == code]
