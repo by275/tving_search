@@ -2,7 +2,6 @@ import json
 import re
 from copy import deepcopy
 from datetime import date, datetime, timedelta
-from urllib.parse import parse_qs, quote
 
 # third-party
 from flask import jsonify, render_template
@@ -78,16 +77,11 @@ class LogicTVP(PluginModuleBase):
         arg["package_name"] = package_name
         arg["module_name"] = self.name
         arg["tving_installed"] = True
-        arg["bot_ktv_installed"] = True
         # pylint: disable=unused-import
         try:
             import tving
         except ImportError:
             arg["tving_installed"] = False
-        try:
-            import bot_downloader_ktv
-        except ImportError:
-            arg["bot_ktv_installed"] = False
 
         try:
             if sub == "episodes":
@@ -102,8 +96,7 @@ class LogicTVP(PluginModuleBase):
                 arg["optlist"]["quickonly"] = filter_val.get("quickonly", default_val["quickonly"]) == "True"
             elif sub == "collections":
                 arg["collections"] = json.loads(arg["tvp_collection_list"])
-            if sub in ("setting", "ratings"):
-                logger.info("sub: %s", sub)
+            if sub == "setting":
                 return render_template(f"{package_name}_{self.name}_{sub}.html", arg=arg)
             return render_template(f"{package_name}_{self.name}.html", arg=arg, sub=sub)
         except Exception:
@@ -207,16 +200,6 @@ class LogicTVP(PluginModuleBase):
                 return jsonify({"success": True})
             if sub == "save_collection":
                 ModelSetting.set("tvp_collection_list", p.get("list"))
-                return jsonify({"success": True})
-            if sub == "ratings":
-                keyword = req.form["keyword"]
-                return jsonify({"success": True, "data": self.get_daum_ratings(keyword)})
-            if sub == "pop_whitelist_program":
-                from bot_downloader_ktv import P as ktv_plugin
-
-                whitelist_program = ktv_plugin.ModelSetting.get_list("vod_whitelist_program", "|")
-                whitelist_program.remove(p.get("value", None))
-                ktv_plugin.ModelSetting.set("vod_whitelist_program", " | ".join(whitelist_program))
                 return jsonify({"success": True})
             raise NotImplementedError(f"잘못된 URL: {sub}")
         except Exception as e:
@@ -490,49 +473,3 @@ class LogicTVP(PluginModuleBase):
         if data["header"]["status"] == 200 and data["body"]["result"]:
             cate_list = [{"code": x["cate_cd"], "name": x["cate_nm"]} for x in data["body"]["result"]]
         return cate_list
-
-    def get_daum_ratings(self, keyword):
-        from support_site import SiteDaum, SiteUtil
-
-        url = f"https://search.daum.net/search?w=tot&q={quote(keyword)}"
-        proxy_url = SiteDaum._proxy_url  # pylint: disable=protected-access
-        cookies = SiteDaum._daum_cookie  # pylint: disable=protected-access
-        root = SiteUtil.get_tree(url, proxy_url=proxy_url, headers=SiteDaum.default_headers, cookies=cookies)
-
-        data = []
-        for item in root.xpath('//*[@id="tcsColl"]//*[name()="c-card-view"]'):
-            keywords = item.xpath('./*[@slot="keyword"]')[0].text_content().split()
-            if not "#방송" in keywords or "#방영종료" in keywords:
-                continue
-            data_item = {"isScheduled": "#방영예정" in keywords}
-            try:
-                src_q = parse_qs(item.xpath('./*[@slot="image"]/@data-original-src')[0].split("?")[1])
-                data_item["image"] = src_q["fname"][0]
-            except Exception:
-                data_item["image"] = "http://www.okbible.com/data/skin/okbible_1/images/common/noimage.gif"
-
-            data_item["title"] = item.xpath('./*[@slot="title"]/text()')[0].strip()
-            href_q = parse_qs(item.xpath('./*[@slot="title"]')[0].get("data-href").lstrip("?"))
-            data_item["href"] = (
-                "https://search.daum.net/search?"
-                + f"w=tv&q={quote(href_q['q'][0])}&irk={href_q['irk'][0]}&irt=tv-program&DA=TVP"
-            )
-
-            for dt in item.xpath(".//dt"):
-                dt_text = dt.text_content().strip()
-                dd_text = dt.xpath("./following-sibling::dd")[0].text_content().strip()
-                if dt_text == "편성":
-                    data_item["air_time"] = dd_text
-                elif dt_text == "시청률":
-                    data_item["ratings"] = dd_text
-                elif dt_text == "채널":
-                    data_item["provider"] = dd_text
-
-            data.append(data_item)
-
-        data_with_ratings = [x for x in data if not x["isScheduled"] and x.get("ratings", "")]
-        return (
-            sorted(data_with_ratings, key=lambda x: float(x["ratings"].rstrip("%")), reverse=True)
-            + [x for x in data if not x["isScheduled"] and not x.get("ratings", "")]
-            + [x for x in data if x["isScheduled"]]
-        )
