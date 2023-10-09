@@ -33,6 +33,7 @@ class LogicTVP(PluginModuleBase):
                 "channels": "",
                 "category": "",
                 "lastonly": "True",
+                "quickonly": "False",
             }
         ),
         "tvp_collection_list": json.dumps(
@@ -98,6 +99,7 @@ class LogicTVP(PluginModuleBase):
                         if x["val"] in filter_val.get(k, default_val[k]):
                             x.update({"sel": "selected"})
                 arg["optlist"]["lastonly"] = filter_val.get("lastonly", default_val["lastonly"]) == "True"
+                arg["optlist"]["quickonly"] = filter_val.get("quickonly", default_val["quickonly"]) == "True"
             elif sub == "collections":
                 arg["collections"] = json.loads(arg["tvp_collection_list"])
             if sub in ("setting", "ratings"):
@@ -119,6 +121,7 @@ class LogicTVP(PluginModuleBase):
                     "categoryCode": p.get("category", ""),
                     "multiCategoryCode": p.get("category", ""),
                     "lastFrequency": "Y" if p.get("lastonly", "") == "True" else "N",
+                    "quickupYn": "Y" if p.get("quickonly", "") == "True" else "N",
                 }
                 pdate = p.get("date", "anytime")
                 if pdate != "anytime":
@@ -355,6 +358,7 @@ class LogicTVP(PluginModuleBase):
             "free": "all",
             "guest": "all",
             "scope": "all",
+            "quickupYn": "N",
             "lastFrequency": "Y",
             "episodeCode": "",
             "notEpisodeCode": "",

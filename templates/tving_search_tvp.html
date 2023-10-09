@@ -48,10 +48,14 @@
             {% endfor %}
             </select>
         </div>
-        <div class="input-group mt-2 justify-content-between">
+        <div class="input-group mt-2 d-block">
             <div class="custom-control custom-checkbox">
                 <input type="checkbox" class="custom-control-input" id="filter-lastonly" name="lastonly" title="마지막만 회차 노출" {{ 'checked' if arg['optlist']['lastonly'] else ''}}>
                 <label class="custom-control-label" for="filter-lastonly">동일 프로그램 마지막 회차만 노출</label>
+            </div>
+            <div class="custom-control custom-checkbox">
+                <input type="checkbox" class="custom-control-input" id="filter-quickonly" name="quickonly" title="QuickVOD만 보이기" {{ 'checked' if arg['optlist']['quickonly'] else ''}}>
+                <label class="custom-control-label" for="filter-quickonly">QuickVOD만 보이기</label>
             </div>
         </div>
     </div>
@@ -309,6 +313,9 @@ span.form-check label  { pointer-events: all; }
         $('#filter-lastonly').change(function() {
             reloadItemsOnChange(getFilterValue());
         });
+        $('#filter-quickonly').change(function() {
+            reloadItemsOnChange(getFilterValue());
+        });
 
         // buttons
         $('#filter-reset-btn').on('click', function() {
@@ -351,7 +358,7 @@ span.form-check label  { pointer-events: all; }
             }
         });
 
-        if (!(filterVal.channels === "" && filterVal.category === "" && filterVal.lastonly == "True")) {
+        if (!(filterVal.channels === "" && filterVal.category === "" && filterVal.lastonly == "True" && filterVal.quickonly == "False")) {
             $('#filter-expand-btn').html('<i class="fa fa-angle-up"></i>');
             $('#advanced-filter').collapse('show');
         }
@@ -400,7 +407,8 @@ span.form-check label  { pointer-events: all; }
             'order': $('#filter-order').val(),
             'channels': $('#filter-channels').val().join(','),
             'category': $('#filter-category').val().join(','),
-            'lastonly': $('#filter-lastonly').is( ":checked" ) ? 'True' : 'False'
+            'lastonly': $('#filter-lastonly').is( ":checked" ) ? 'True' : 'False',
+            'quickonly': $('#filter-quickonly').is( ":checked" ) ? 'True' : 'False'
         }
     };
 
@@ -419,6 +427,8 @@ span.form-check label  { pointer-events: all; }
         $('#filter-category').multiselect('refresh');
         
         $('#filter-lastonly').prop('checked', true);
+
+        $('#filter-quickonly').prop('checked', false);
 
         reloadItemsOnChange(getFilterValue());
     };
