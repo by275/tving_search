@@ -10,7 +10,7 @@ from flask import jsonify, render_template
 from plugin import PluginModuleBase
 
 # pylint: disable=relative-beyond-top-level
-from .logic_common import apikey, get_session, tving_originals, tving_search
+from .logic_common import API
 from .setup import P
 
 logger = P.logger
@@ -50,11 +50,12 @@ class LogicMOV(PluginModuleBase):
         "category": [],
     }
 
+    PTN_MCODE = re.compile(r"^(M[0-9]+)$")
+
     def __init__(self, PM):
         super().__init__(PM, None)
         self.name = "mov"
         self.first_menu = "movies"
-        self.sess = get_session()
 
     def plugin_load(self):
         self.optlist["category"] = [{"key": x["name"], "val": x["code"], "sel": ""} for x in self.tving_category()]
@@ -104,24 +105,14 @@ class LogicMOV(PluginModuleBase):
 
                 excl_filter_enabled = ModelSetting.get_bool("mov_excl_filter_enabled")
                 if excl_filter_enabled:
-                    uparams.update(
-                        {
-                            "notMovieCode": ",".join(
-                                x.strip() for x in ModelSetting.get("mov_excl_filter_movie").split(",")
-                            )
-                        }
-                    )
-                return jsonify(
-                    {
-                        "success": True,
-                        "data": self.tving_movies(uparams=uparams, page=page, excl_filter_enabled=excl_filter_enabled),
-                    }
-                )
+                    uparams.update({"notMovieCode": ModelSetting.get("mov_excl_filter_movie").replace(" ", "")})
+                data = self.tving_movies(uparams=uparams, page=page, excl_filter_enabled=excl_filter_enabled)
+                return jsonify({"success": True, "data": data})
             if sub == "search":
                 kwd = p.get("keyword", "")
                 if not kwd:
                     return jsonify({"success": True, "data": {"list": [], "nomore": True}})
-                m = re.compile(r"^(M[0-9]+)$").search(kwd)
+                m = self.PTN_MCODE.search(kwd)
                 if m:
                     uparams = {"movieCode": kwd, "notMovieCode": ""}
                     return jsonify({"success": True, "data": self.tving_movies(uparams=uparams, page=page)})
@@ -222,11 +213,7 @@ class LogicMOV(PluginModuleBase):
 
     def tving_mv_parser(self, items, excl_filter_enabled=False):
         if excl_filter_enabled:
-            excl_genre = [
-                x.strip().replace(" ", "").lower()
-                for x in ModelSetting.get("mov_excl_filter_category").split(",")
-                if x.strip()
-            ]
+            excl_genre = ModelSetting.get("mov_excl_filter_category").replace(" ", "").lower().split(",")
 
         # from items-retrieved-from-api to items-parsed-for-web
         ret = []
@@ -235,7 +222,7 @@ class LogicMOV(PluginModuleBase):
                 parsed_item = self.tving_mv_parser_one(item)
                 if (
                     excl_filter_enabled
-                    and parsed_item["movie"]["category1_name"]["ko"].strip().replace(" ", "").lower() in excl_genre
+                    and parsed_item["movie"]["category1_name"]["ko"].replace(" ", "").lower() in excl_genre
                 ):
                     continue
                 if bool(parsed_item):
@@ -245,7 +232,7 @@ class LogicMOV(PluginModuleBase):
         return ret
 
     def __search(self, keyword, page="1"):
-        data = tving_search(keyword, self.name, page=page, session=self.sess)
+        data = API.search(keyword, self.name, page=page)
         codes = [x["mast_cd"] for x in data["list"]]
 
         mv_list, no_more = [], data["nomore"]
@@ -264,7 +251,7 @@ class LogicMOV(PluginModuleBase):
         return {"list": mv_list, "nomore": no_more}
 
     def __originals(self, order, page="1"):
-        data = tving_originals(self.name, order, page=page, session=self.sess)
+        data = API.originals(self.name, order, page=page)
         codes = [x["vod_code"] for x in data["list"]]
 
         mv_list, no_more = [], data["nomore"]
@@ -277,7 +264,7 @@ class LogicMOV(PluginModuleBase):
         return {"list": mv_list, "nomore": no_more}
 
     def tving_movies(self, uparams=None, page="1", excl_filter_enabled=False):
-        api_url = "https://api.tving.com/v2/media/movies"
+        url = "/v2/media/movies"
         params = {
             "pageNo": page,
             "pageSize": "24",
@@ -291,78 +278,33 @@ class LogicMOV(PluginModuleBase):
             "categoryCode": "",
             "productPackageCode": "2610061,2610161,261062",
             "personal": "N",
-            "screenCode": "CSSD0100",
-            "networkCode": "CSND0900",
-            "osCode": "CSOD0900",
-            "teleCode": "CSCD0900",
-            "apiKey": apikey,
         }
-        if uparams and isinstance(uparams, dict):
-            params.update(uparams)
+        params.update(uparams or {})
+        data = API.get(url, params=params)
 
-        res = self.sess.get(api_url, params=params)
-        res.raise_for_status()
-        data = res.json()
-
-        mv_list, no_more = [], True
-        if data["header"]["status"] == 200:
-            mv_list = data["body"]["result"]
-            no_more = data["body"]["has_more"].lower() != "y"
+        mv_list = data["body"]["result"]
+        no_more = data["body"]["has_more"].lower() != "y"
         return {
             "list": self.tving_mv_parser(mv_list, excl_filter_enabled=excl_filter_enabled) if mv_list else [],
             "nomore": no_more,
         }
 
     def tving_highlights(self, uparams=None, page="1"):
-        api_url = "https://api.tving.com/v2/operator/highlights"
-        pagesize = "20"
-        params = {
-            "mainYn": "Y",
-            "pageNo": page,
-            "pageSize": pagesize,
-            "screenCode": "CSSD0100",
-            "networkCode": "CSND0900",
-            "osCode": "CSOD0900",
-            "teleCode": "CSCD0900",
-            "apiKey": apikey,
-        }
-        if uparams and isinstance(uparams, dict):
-            params.update(uparams)
-
-        res = self.sess.get(api_url, params=params)
-        res.raise_for_status()
-        data = res.json()
-
-        mv_list, no_more = [], True
-        if data["header"]["status"] == 200 and data["body"]["result"]:
-            mv_list = [x["content"] for x in data["body"]["result"]]
-            no_more = len(data["body"]["result"]) != int(pagesize)
+        mv_list, no_more = API.highlights(uparams=uparams, page=page)
         return {"list": self.tving_mv_parser(mv_list) if mv_list else [], "nomore": no_more}
 
     def tving_curation(self, code, uparams=None):
-        api_url = f"https://api.tving.com/v2/media/movie/curation/{code}"
-        params = {
-            "pageNo": "1",
-            "screenCode": "CSSD0100",
-            "networkCode": "CSND0900",
-            "osCode": "CSOD0900",
-            "teleCode": "CSCD0900",
-            "apiKey": apikey,
-        }
-        if uparams and isinstance(uparams, dict):
-            params.update(uparams)
+        url = f"/v2/media/movie/curation/{code}"
+        params = {"pageNo": "1"}
+        params.update(uparams or {})
+        data = API.get(url, params=params)
 
-        res = self.sess.get(api_url, params=params)
-        res.raise_for_status()
-        data = res.json()
-
-        mv_list, no_more = [], True
-        if data["header"]["status"] == 200:
-            mv_list = [{"movie": x} for x in data["body"]["movies"]]
+        mv_list = [{"movie": x} for x in data["body"]["movies"]]
+        no_more = data["body"]["has_more"].lower() != "y"
         return {"list": self.tving_mv_parser(mv_list) if mv_list else [], "nomore": no_more}
 
     def tving_category(self):
-        api_url = "https://api.tving.com/v2/media/movie/categories"
+        url = "/v2/media/movie/categories"
         params = {
             "pageNo": "1",
             "pageSize": "10",
@@ -371,22 +313,10 @@ class LogicMOV(PluginModuleBase):
             "adult": "n",
             "guest": "all",
             "scope": "all",
-            "screenCode": "CSSD0100",
-            "networkCode": "CSND0900",
-            "osCode": "CSOD0900",
-            "teleCode": "CSCD0900",
-            "apiKey": apikey,
         }
-
-        res = self.sess.get(api_url, params=params)
-        res.raise_for_status()
-        data = res.json()
-
-        cate_list = {}
-        if data["header"]["status"] == 200 and data["body"]["result"]:
-            cate_list = [
-                {"code": x["category_code"], "name": x["category_name"]}
-                for x in data["body"]["result"]
-                if x["category_code"]
-            ]
-        return cate_list
+        data = API.get(url, params=params)
+        return [
+            {"code": x["category_code"], "name": x["category_name"]}
+            for x in data["body"]["result"]
+            if x["category_code"]
+        ]

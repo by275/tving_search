@@ -3,12 +3,12 @@
 <div>
     <nav>
         {{ macros.m_tab_head_start() }} 
-            {{ macros.m_tab_head('일반', true) }} 
+            {{ macros.m_tab_head('basic', '기본', true) }} 
         {{ macros.m_tab_head_end() }}
     </nav>
     <div class="tab-content mb-3" id="nav-tabContent">
         <!-- 일반 -->
-        {{ macros.m_tab_content_start('일반', true) }}
+        {{ macros.m_tab_content_start('basic', true) }}
         <form id="setting" name="setting">
             {{ macros.setting_checkbox('mov_excl_filter_enabled', '제외 필터', value=arg['mov_excl_filter_enabled'], desc=['제외 필터는 최신순, 인기순에서만 적용 됩니다.']) }}
             <div id="mov_excl_filter_enabled_div" class="collapse{{ ' show' if arg['mov_excl_filter_enabled'] == 'True' else '' }}">

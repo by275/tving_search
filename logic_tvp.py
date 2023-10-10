@@ -10,7 +10,7 @@ from flask import jsonify, render_template
 from plugin import PluginModuleBase
 
 # pylint: disable=relative-beyond-top-level
-from .logic_common import apikey, get_session, pathscrub, tving_originals, tving_search
+from .logic_common import API, pathscrub
 from .setup import P
 
 logger = P.logger
@@ -60,11 +60,12 @@ class LogicTVP(PluginModuleBase):
         "category": [],
     }
 
+    PTN_PCODE = re.compile(r"^(P[0-9]+)$")
+
     def __init__(self, PM):
         super().__init__(PM, None)
         self.name = "tvp"
         self.first_menu = "episodes"
-        self.sess = get_session()
 
     def plugin_load(self):
         self.optlist["channels"] = [{"key": x["name"], "val": x["code"], "sel": ""} for x in self.tving_channels()]
@@ -139,27 +140,17 @@ class LogicTVP(PluginModuleBase):
                 if excl_filter_enabled:
                     uparams.update(
                         {
-                            "notEpisodeCode": ",".join(
-                                x.strip() for x in ModelSetting.get("tvp_excl_filter_episode").split(",")
-                            ),
-                            "notProgramCode": ",".join(
-                                x.strip() for x in ModelSetting.get("tvp_excl_filter_program").split(",")
-                            ),
+                            "notEpisodeCode": ModelSetting.get("tvp_excl_filter_episode").replace(" ", ""),
+                            "notProgramCode": ModelSetting.get("tvp_excl_filter_program").replace(" ", ""),
                         }
                     )
-                return jsonify(
-                    {
-                        "success": True,
-                        "data": self.tving_episodes(
-                            uparams=uparams, page=page, excl_filter_enabled=excl_filter_enabled
-                        ),
-                    }
-                )
+                data = self.tving_episodes(uparams=uparams, page=page, excl_filter_enabled=excl_filter_enabled)
+                return jsonify({"success": True, "data": data})
             if sub == "search":
                 kwd = p.get("keyword", "")
                 if not kwd:
                     return jsonify({"success": True, "data": {"list": [], "nomore": True}})
-                m = re.compile(r"^(P[0-9]+)$").search(kwd)
+                m = self.PTN_PCODE.search(kwd)
                 if m:
                     uparams = {"programCode": kwd, "lastFrequency": "frequencyDesc"}
                     return jsonify({"success": True, "data": self.tving_episodes(uparams=uparams, page=page)})
@@ -278,26 +269,18 @@ class LogicTVP(PluginModuleBase):
 
     def tving_ep_parser(self, items, excl_filter_enabled=False):
         if excl_filter_enabled:
-            excl_ch = [
-                x.strip().replace(" ", "").lower()
-                for x in ModelSetting.get("tvp_excl_filter_channels").split(",")
-                if x.strip()
-            ]
-            excl_genre = [
-                x.strip().replace(" ", "").lower()
-                for x in ModelSetting.get("tvp_excl_filter_category").split(",")
-                if x.strip()
-            ]
+            excl_ch = ModelSetting.get("tvp_excl_filter_channels").replace(" ", "").lower().split(",")
+            excl_genre = ModelSetting.get("tvp_excl_filter_category").replace(" ", "").lower().split(",")
 
         # from items-retrieved-from-api to items-parsed-for-web
         ret = []
         for item in items:
             try:
-                if excl_filter_enabled and item["channel"]["name"]["ko"].strip().replace(" ", "").lower() in excl_ch:
+                if excl_filter_enabled and item["channel"]["name"]["ko"].replace(" ", "").lower() in excl_ch:
                     continue
                 if (
                     excl_filter_enabled
-                    and item["program"]["category1_name"]["ko"].strip().replace(" ", "").lower() in excl_genre
+                    and item["program"]["category1_name"]["ko"].replace(" ", "").lower() in excl_genre
                 ):
                     continue
                 parsed_item = self.tving_ep_parser_one(item)
@@ -308,7 +291,7 @@ class LogicTVP(PluginModuleBase):
         return ret
 
     def __search(self, keyword, page="1"):
-        data = tving_search(keyword, self.name, page=page, session=self.sess)
+        data = API.search(keyword, self.name, page=page)
         codes = [x["mast_cd"] for x in data["list"]]
 
         ep_list, no_more = [], data["nomore"]
@@ -327,7 +310,7 @@ class LogicTVP(PluginModuleBase):
         return {"list": ep_list, "nomore": no_more}
 
     def __originals(self, order, page="1"):
-        data = tving_originals(self.name, order, page=page, session=self.sess)
+        data = API.originals(self.name, order, page=page)
         codes = [x["vod_code"] for x in data["list"]]
 
         ep_list, no_more = [], data["nomore"]
@@ -340,7 +323,7 @@ class LogicTVP(PluginModuleBase):
         return {"list": ep_list, "nomore": no_more}
 
     def tving_episodes(self, uparams=None, page="1", excl_filter_enabled=False):
-        api_url = "https://api.tving.com/v2/media/episodes"
+        url = "/v2/media/episodes"
         params = {
             "pageNo": page,
             "pageSize": "24",
@@ -358,128 +341,61 @@ class LogicTVP(PluginModuleBase):
             "programCode": "",
             "notProgramCode": "",
             "personal": "N",
-            "screenCode": "CSSD0100",
-            "networkCode": "CSND0900",
-            "osCode": "CSOD0900",
-            "teleCode": "CSCD0900",
-            "apiKey": apikey,
         }
         # not을 포함한 제외필터가 우선함
-        if uparams and isinstance(uparams, dict):
-            params.update(uparams)
-        res = self.sess.get(api_url, params=params)
-        res.raise_for_status()
-        data = res.json()
+        params.update(uparams or {})
+        data = API.get(url, params=params)
 
-        ep_list, no_more = [], True
-        if data["header"]["status"] == 200:
-            ep_list = data["body"]["result"]
-            no_more = data["body"]["has_more"].lower() != "y"
+        ep_list = data["body"]["result"]
+        no_more = data["body"]["has_more"].lower() != "y"
         return {
             "list": self.tving_ep_parser(ep_list, excl_filter_enabled=excl_filter_enabled) if ep_list else [],
             "nomore": no_more,
         }
 
     def tving_highlights(self, uparams=None, page="1"):
-        api_url = "https://api.tving.com/v2/operator/highlights"
-        pagesize = "20"
-        params = {
-            "mainYn": "Y",
-            "pageNo": page,
-            "pageSize": pagesize,
-            "screenCode": "CSSD0100",
-            "networkCode": "CSND0900",
-            "osCode": "CSOD0900",
-            "teleCode": "CSCD0900",
-            "apiKey": apikey,
-        }
-        if uparams and isinstance(uparams, dict):
-            params.update(uparams)
-
-        res = self.sess.get(api_url, params=params)
-        res.raise_for_status()
-        data = res.json()
-
-        ep_list, no_more = [], True
-        if data["header"]["status"] == 200 and data["body"]["result"]:
-            ep_list = [x["content"] for x in data["body"]["result"]]
-            no_more = len(data["body"]["result"]) != int(pagesize)
+        ep_list, no_more = API.highlights(uparams=uparams, page=page)
         return {"list": self.tving_ep_parser(ep_list) if ep_list else [], "nomore": no_more}
 
     def tving_theme(self, seq, uparams=None, page="1"):
         if len(seq.split("/")) != 2:
-            section_seq = self.sess.get(
-                f"https://api.tving.com/v2/operator/theme/{seq}?&pocCode=POCD0400&pageNo=1&pageSize=10&themeType=T&status=Y&cacheTime=5&screenCode=CSSD0100&networkCode=CSND0900&osCode=CSOD0900&teleCode=CSCD0900&apiKey={apikey}"
-            ).json()["body"]["result"]["sections"][0]["section_seq"]
+            params = {"pocCode": "POCD0400", "pageNo": "1", "pageSize": "10", "themeType": "T", "status": "Y"}
+            data = API.get(f"/v2/operator/theme/{seq}", params=params)
+            section_seq = data["body"]["result"]["sections"][0]["section_seq"]
             seq = f"{seq}/{section_seq}"
 
-        api_url = f"https://api.tving.com/v2/operator/theme/{seq}"
+        url = f"/v2/operator/theme/{seq}"
         params = {
             "pocCode": "POCD0400",
             "pageNo": page,
             "pageSize": "150",
             "themeType": "T",
-            "screenCode": "CSSD0100",
-            "networkCode": "CSND0900",
-            "osCode": "CSOD0900",
-            "teleCode": "CSCD0900",
-            "apiKey": apikey,
         }
-        if uparams and isinstance(uparams, dict):
-            params.update(uparams)
+        params.update(uparams or {})
+        data = API.get(url, params=params)
 
-        res = self.sess.get(api_url, params=params)
-        res.raise_for_status()
-        data = res.json()
-
-        ep_list, no_more = [], True
-        if data["header"]["status"] == 200 and data["body"]["result"]:
-            ep_list = [x["content"] for x in data["body"]["result"]]
-            no_more = data["body"]["has_more"].lower() != "y"
+        ep_list = [x["content"] for x in data["body"]["result"]]
+        no_more = data["body"]["has_more"].lower() != "y"
         return {"list": self.tving_ep_parser(ep_list) if ep_list else [], "nomore": no_more}
 
     def tving_channels(self):
-        api_url = "https://api.tving.com/v2/operator/highlights"
+        url = "/v2/operator/highlights"
         params = {
             "positionKey": "AND_VOD_CHNLLIST",
-            "screenCode": "CSSD0100",
-            "networkCode": "CSND0900",
-            "osCode": "CSOD0900",
-            "teleCode": "CSCD0900",
-            "apiKey": apikey,
             "cacheTime": "5",
         }
-
-        res = self.sess.get(api_url, params=params)
-        res.raise_for_status()
-        data = res.json()
-
-        ch_list = {}
-        if data["header"]["status"] == 200 and data["body"]["result"]:
-            ch_list = [{"code": x["content_code"], "name": x["mapping_contents_name"]} for x in data["body"]["result"]]
-        return ch_list
+        data = API.get(url, params=params)
+        return [{"code": x["content_code"], "name": x["mapping_contents_name"]} for x in data["body"]["result"]]
 
     def tving_category(self):
         """대분류
-        https://api.tving.com/v2/media/programcatsdtl에서 상세카테고리(소분류)를 얻을 수 있다.
+        /v2/media/programcatsdtl에서 상세카테고리(소분류)를 얻을 수 있다.
         """
-        api_url = "https://api.tving.com/v2/media/programcats"
+        url = "/v2/media/programcats"
         params = {
             "pageNo": "1",
             "pageSize": "10",
             "order": "name",
-            "screenCode": "CSSD0100",
-            "networkCode": "CSND0900",
-            "osCode": "CSOD0900",
-            "teleCode": "CSCD0900",
-            "apiKey": apikey,
         }
-
-        res = self.sess.get(api_url, params=params)
-        res.raise_for_status()
-        data = res.json()
-
-        cate_list = {}
-        if data["header"]["status"] == 200 and data["body"]["result"]:
-            cate_list = [{"code": x["cate_cd"], "name": x["cate_nm"]} for x in data["body"]["result"]]
-        return cate_list
+        data = API.get(url, params=params)
+        return [{"code": x["cate_cd"], "name": x["cate_nm"]} for x in data["body"]["result"]]
