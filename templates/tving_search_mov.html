@@ -9,9 +9,9 @@
     {% if sub == 'movies' %}
     <div class="input-group justify-content-between">
         <div class="input-group-prepend" style="flex: 1;">
-            <select id="filter-type" class="custom-select ml-0 mr-1 w-auto" name="type" title="유형 선택">
-            {% for li in arg['optlist']['type'] %}
-                <option value="{{ li['val'] }}" {{ li['sel'] }}>{{ li['key'] }}</option>
+            <select id="filter-category" class="custom-select ml-0 mr-1 w-auto" multiple="multiple" name="category" title="장르 선택">
+            {% for li in arg['optlist']['category'] %}
+                <option value="{{ li['val'] }}" title="{{ li['val'] }}" {{ li['sel'] }}>{{ li['key'] }}</option>
             {% endfor %}
             </select>
             <select id="filter-order" class="custom-select ml-0 mr-1 w-auto" name="order" title="정렬 기준">
@@ -34,13 +34,6 @@
     </div>
 
     <div class="mb-2 collapse hide" id="advanced-filter">
-        <div class="input-group mt-2">
-            <select id="filter-category" class="custom-select ml-0 mr-1 w-auto" multiple="multiple" name="category" title="장르 선택">
-            {% for li in arg['optlist']['category'] %}
-                <option value="{{ li['val'] }}" title="{{ li['val'] }}" {{ li['sel'] }}>{{ li['key'] }}</option>
-            {% endfor %}
-            </select>
-        </div>
         <div class="input-group mt-2 justify-content-between">
             <div class="custom-control custom-checkbox">
                 <input type="checkbox" class="custom-control-input" id="filter-diversityonly" name="diversityonly" title="다양성 영화만 보기" {{ 'checked' if arg['optlist']['diversityonly'] else ''}}>
@@ -272,9 +265,6 @@ span.form-check label  { pointer-events: all; }
             }
         });
 
-        $('select#filter-type').change(function() {
-            reloadItemsOnChange(getFilterValue());
-        });
         $('select#filter-order').change(function() {
             reloadItemsOnChange(getFilterValue());
         });
@@ -323,7 +313,7 @@ span.form-check label  { pointer-events: all; }
             }
         });
 
-        if (!(filterVal.category === "" && filterVal.diversityonly == "False")) {
+        if (!(filterVal.diversityonly == "False")) {
             $('#filter-expand-btn').html('<i class="fa fa-angle-up"></i>');
             $('#advanced-filter').collapse('show');
         }
@@ -368,15 +358,13 @@ span.form-check label  { pointer-events: all; }
 
     function getFilterValue() {
         return {
-            'type': $('#filter-type').val(),
-            'order': $('#filter-order').val(),
             'category': $('#filter-category').val().join(','),
+            'order': $('#filter-order').val(),
             'diversityonly': $('#filter-diversityonly').is( ":checked" ) ? 'True' : 'False'
         }
     };
 
     function resetFilterValue() {
-        $("#filter-type").val("all").prop("selected", true);
         $("#filter-order").val("new").prop("selected", true);
 
         $('#filter-category option:selected').each(function () {

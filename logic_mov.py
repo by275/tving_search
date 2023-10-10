@@ -43,11 +43,6 @@ class LogicMOV(PluginModuleBase):
     }
 
     optlist = {
-        "type": [
-            {"key": "전체유형", "val": "all", "sel": ""},
-            {"key": "개별구매", "val": "nosalepackage", "sel": ""},
-            {"key": "티빙무료", "val": "salepackageonly", "sel": ""},
-        ],
         "order": [
             {"key": "최신순", "val": "new", "sel": ""},
             {"key": "인기순", "val": "viewDay", "sel": ""},
@@ -104,17 +99,8 @@ class LogicMOV(PluginModuleBase):
                 uparams = {
                     "order": p.get("order", "new"),
                     "categoryCode": p.get("category", ""),
-                    "multiCategoryCode": p.get("category", ""),
                     "diversityYn": "Y" if p.get("diversityonly", "") == "True" else "",
                 }
-                ptype = p.get("type", "all")
-                if ptype != "all":
-                    if ptype == "salepackageonly":
-                        uparams.update({"productPackageCode": "2610061,2610161,261062"})
-                    elif ptype == "nosalepackage":
-                        uparams.update({"notProductPackageCode": "2610061,2610161,261062"})
-                    else:
-                        raise NotImplementedError(f"Unknown parameter: type={ptype}")
 
                 excl_filter_enabled = ModelSetting.get_bool("mov_excl_filter_enabled")
                 if excl_filter_enabled:
@@ -303,8 +289,7 @@ class LogicMOV(PluginModuleBase):
             "movieCode": "",
             "notMovieCode": "",
             "categoryCode": "",
-            "productPackageCode": "",
-            "multiCategoryCode": "",
+            "productPackageCode": "2610061,2610161,261062",
             "personal": "N",
             "screenCode": "CSSD0100",
             "networkCode": "CSND0900",
