@@ -7,6 +7,7 @@ from flask import jsonify, render_template
 from plugin import PluginModuleBase
 
 # pylint: disable=relative-beyond-top-level
+from .logic_common import API
 from .setup import P
 
 logger = P.logger
@@ -32,7 +33,7 @@ class LogicETC(PluginModuleBase):
             arg["bot_ktv_installed"] = False
 
         try:
-            if sub == "ratings":
+            if sub in ["ratings", "soon"]:
                 return render_template(f"{package_name}_{self.name}_{sub}.html", arg=arg)
             return render_template(f"{package_name}_{self.name}.html", arg=arg, sub=sub)
         except Exception:
@@ -45,6 +46,8 @@ class LogicETC(PluginModuleBase):
             if sub == "ratings":
                 keyword = req.form["keyword"]
                 return jsonify({"success": True, "data": self.get_daum_ratings(keyword)})
+            if sub == "soon":
+                return jsonify({"success": True, "data": API.prerelease()})
             if sub == "pop_whitelist_program":
                 from bot_downloader_ktv import P as ktv_plugin
 

@@ -27,6 +27,7 @@ __menu = {
             "name": "기타",
             "list": [
                 {"uri": "ratings", "name": "시청률"},
+                {"uri": "soon", "name": "공개예정"},
             ],
         },
         {

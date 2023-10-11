@@ -224,3 +224,15 @@ class API:
         else:
             raise NotImplementedError(f"Unknown category: {category}")
         return {"list": dt_list, "nomore": no_more}
+
+    @classmethod
+    def prerelease(cls):
+        url = "/v2/media/prerelease/contents"
+        dt_list = []
+        for page in range(1, 10):
+            params = {"pageSize": "20", "pageNo": page}
+            data = cls.get(url, params=params)
+            dt_list += data["body"]["result"]
+            if data["body"]["has_more"].lower() != "y":
+                break
+        return dt_list

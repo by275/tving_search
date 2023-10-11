@@ -40,6 +40,7 @@ class LogicTVP(PluginModuleBase):
                 {"key": "새로 시작한 프로그램", "val": "/highlights?key=AND_RE_VODHOME_NEW_PM_LIST"},
                 {"key": "티빙 4K", "val": "/highlights?key=SMTV_PROG_4K"},
                 {"key": "티빙 오리지널", "val": "/originals?order=new"},
+                {"key": "파라마운트+ 오리지널&독점", "val": "/highlights?key=AND_PARAMOUNT_ORG_PROGRAM_LIST"},
             ]
         ),
     }

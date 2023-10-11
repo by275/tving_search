@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div id="content-soon" class="mb-1 pl-4 pr-4 pt-2"></div>
+
+<!--font-awesome-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<!--context menu-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.9.2/jquery.contextMenu.min.css" integrity="sha512-SWjZLElR5l3FxoO9Bt9Dy3plCWlBi1Mc9/OlojDPwryZxO0ydpZgvXMLhV6jdEyULGNWjKgZWiX/AMzIvZ4JuA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.9.2/jquery.contextMenu.min.js" integrity="sha512-kvg/Lknti7OoAw0GqMBP8B+7cGHvp4M9O9V6nAYG91FZVDMW3Xkkq5qrdMhrXiawahqU7IZ5CNsY/wWy1PpGTQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.9.2/jquery.ui.position.js" integrity="sha512-vBR2rismjmjzdH54bB2Gx+xSe/17U0iHpJ1gkyucuqlTeq+Q8zwL8aJDIfhQtnWMVbEKMzF00pmFjc9IPjzR7w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script type="text/javascript">
+const package_name = "{{arg['package_name'] }}";
+const module_name = "{{arg['module_name']}}";
+
+$(document).ready(function(){
+  show_tving_soon();
+});
+
+function show_tving_soon() {
+  $.ajax({
+    url: '/' + package_name + '/ajax/' + module_name + '/soon',
+    type: "POST",
+    cache: false,
+    dataType: "json",
+    success: function (data) {
+      if (data.success) {
+        make_tving_soon(data.data);
+      } else {
+          $.notify('<strong>실패하였습니다!</strong><br>' + data.log, {
+              type: 'warning'
+          });
+      }
+    }
+  })
+}
+
+function make_tving_soon(data){
+	str = '';
+	str += '<div class="row">';
+	for (var i = 0; i < Object.keys(data).length; i++) {
+    str += '<div class="col-lg-2 col-md-3 col-sm-4 col-6 pr-1 pl-1">';
+    str += '<div class="card mb-4 box-shadow">';
+    str += `<a href="https://www.tving.com/contents/${data[i].vod_code}" rel="noopener noreferrer" target="_blank"><img class="card-img-top" style="position:relative;" src="https://image.tving.com${data[i].poster_image}" alt="${data[i].vod_name}" title="${data[i].vod_name}" class="img-fluid img-thumbnail"></a>`;
+    str += '</div>';
+    str += '</div>';
+	}
+	str += '</div>';
+
+  document.getElementById("content-soon").innerHTML = str;
+}
+
+
+</script>    
+{% endblock %}
