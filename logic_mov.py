@@ -32,7 +32,6 @@ class LogicMOV(PluginModuleBase):
         "mov_collection_list": json.dumps(
             [
                 {"key": "티빙 4K", "val": "/highlights?key=SMTV_MV_4K"},
-                {"key": "티빙 오리지널&독점", "val": "/highlights?key=AND_RE_MOVIEHOME_HOT_MV_LIST"},
                 {"key": "티빙 오리지널", "val": "/originals?order=new"},
             ]
         ),
