@@ -3,13 +3,9 @@ import re
 from copy import deepcopy
 from datetime import datetime
 
-# third-party
 from flask import jsonify, render_template
+from plugin import PluginModuleBase  # pylint: disable=import-error
 
-# pylint: disable=import-error
-from plugin import PluginModuleBase
-
-# pylint: disable=relative-beyond-top-level
 from .logic_common import API
 from .setup import P
 
@@ -61,6 +57,7 @@ class LogicMOV(PluginModuleBase):
         self.optlist["category"] = [{"key": x["name"], "val": x["code"], "sel": ""} for x in self.tving_category()]
 
     def process_menu(self, sub, req):
+        _ = req
         arg = ModelSetting.to_dict()
         arg["package_name"] = package_name
         arg["module_name"] = self.name

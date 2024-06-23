@@ -1,12 +1,8 @@
 from urllib.parse import parse_qs, quote
 
-# third-party
 from flask import jsonify, render_template
+from plugin import PluginModuleBase  # pylint: disable=import-error
 
-# pylint: disable=import-error
-from plugin import PluginModuleBase
-
-# pylint: disable=relative-beyond-top-level
 from .logic_common import API
 from .setup import P
 
@@ -22,6 +18,7 @@ class LogicETC(PluginModuleBase):
         self.first_menu = "ratings"
 
     def process_menu(self, sub, req):
+        _ = req
         arg = ModelSetting.to_dict()
         arg["package_name"] = package_name
         arg["module_name"] = self.name
@@ -49,7 +46,7 @@ class LogicETC(PluginModuleBase):
             if sub == "soon":
                 return jsonify({"success": True, "data": API.prerelease()})
             if sub == "pop_whitelist_program":
-                from bot_downloader_ktv import P as ktv_plugin
+                from bot_downloader_ktv import P as ktv_plugin  # pylint: disable=import-error
 
                 whitelist_program = ktv_plugin.ModelSetting.get_list("vod_whitelist_program", "|")
                 whitelist_program.remove(p.get("value", None))

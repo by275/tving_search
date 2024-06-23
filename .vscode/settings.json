@@ -1,4 +1,7 @@
 {
+    "editor.formatOnSave": true,
+    "editor.minimap.enabled": false,
+    "python.defaultInterpreterPath": "~/dev/flaskfarm/venv/bin/python",
     "python.languageServer": "Jedi",
     "pylint.args": [
         "--disable",
@@ -14,7 +17,7 @@
     "[python]": {
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
-            "source.organizeImports": true
+            "source.organizeImports": "explicit"
         },
         "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.minimap.enabled": false

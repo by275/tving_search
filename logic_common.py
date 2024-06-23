@@ -3,10 +3,8 @@ import re
 import sys
 from typing import Optional
 
-# third-party
 import requests
 
-# pylint: disable=relative-beyond-top-level
 from .setup import P
 
 logger = P.logger
